@@ -472,7 +472,7 @@ app.use((error: unknown, _request: Request, response: Response, _next: NextFunct
   response.status(500).json({ error: message });
 });
 
-app.listen(port, '127.0.0.1', () => {
+app.listen(port, '0.0.0.0', () => {
   console.log(`API disponible en http://127.0.0.1:${port}`);
   console.log(googleApiKey ? 'Google Places: configurado' : 'Google Places: modo demo');
   console.log(
