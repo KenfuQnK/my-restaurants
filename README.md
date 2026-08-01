@@ -115,6 +115,14 @@ Abre:
 http://127.0.0.1:5173
 ```
 
+## Desplegar en Vercel
+
+Importa el repositorio en Vercel como proyecto Vite. La configuraciÃ³n de `vercel.json` publica el frontend y dirige `/api/*` y `/share-target` a la funciÃ³n Express; no es necesario configurar una URL de API en el navegador. El build genera `dist-server` antes de empaquetar la funciÃ³n.
+
+En **Settings > Environment Variables**, copia las variables privadas de `.env` que necesites (`GOOGLE_PLACES_API_KEY` y las de Meta). No aÃ±adas `PORT` ni variables con el prefijo `VITE_`. Para un dominio propio, aÃ±ade tambiÃ©n su origen a `CORS_ORIGINS`.
+
+El desarrollo local no cambia: `npm run dev` sigue arrancando Vite y Express en los puertos 5173 y 8787.
+
 ## Configurar Google Places
 
 1. Crea o selecciona un proyecto en Google Cloud.

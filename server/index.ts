@@ -34,7 +34,7 @@ const allowedOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:5173,http:
 
 const corsOptions: CorsOptions = {
   origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.includes(origin) || isVercelDeploymentOrigin(origin)) {
       callback(null, true);
       return;
     }
@@ -472,6 +472,7 @@ app.use((error: unknown, _request: Request, response: Response, _next: NextFunct
   response.status(500).json({ error: message });
 });
 
+if (!process.env.VERCEL) {
 app.listen(port, '0.0.0.0', () => {
   console.log(`API disponible en http://127.0.0.1:${port}`);
   console.log(googleApiKey ? 'Google Places: configurado' : 'Google Places: modo demo');
@@ -496,6 +497,9 @@ app.listen(port, '0.0.0.0', () => {
       : 'Logs de importación Instagram: desactivados',
   );
 });
+}
+
+export default app;
 
 function logInstagramDebug(event: string, details: Record<string, unknown>): void {
   if (!instagramDebugLogs) return;
@@ -603,4 +607,8 @@ function clampNumber(value: unknown, min: number, max: number, fallback: number)
 function parseBoolean(value: string | undefined, fallback: boolean): boolean {
   if (value === undefined) return fallback;
   return !['0', 'false', 'no', 'off'].includes(value.trim().toLocaleLowerCase('en'));
+}
+
+function isVercelDeploymentOrigin(origin: string): boolean {
+  return process.env.VERCEL === '1' && /^https:\/\/[a-z0-9-]+\.vercel\.app$/iu.test(origin);
 }

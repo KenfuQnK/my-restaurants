@@ -8,3 +8,5 @@ dist-server
 .playwright-cli/
 output/
 .dev-server.log
+
+.vercel
