@@ -127,11 +127,11 @@ export const InstagramEmbed = memo(function InstagramEmbed({
           {publication.authorName && <span>@{publication.authorName.replace(/^@/, '')}</span>}
         </div>
         <div className="instagram-publication-actions">
-          {trustedHtml && embedState === 'ready' && (
+          {/* {trustedHtml && embedState === 'ready' && (
             <button type="button" onClick={() => setAttempt((current) => current + 1)}>
               <RotateCw size={14} /> Recargar
             </button>
-          )}
+          )} */}
           <a
             href={publication.normalizedUrl}
             target="_blank"

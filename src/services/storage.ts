@@ -4,7 +4,8 @@ import type {
   SavedRestaurant,
 } from '../types/restaurant';
 
-const STORAGE_KEY = 'mis-restaurantes:v1';
+const STORAGE_KEY = 'my-restaurants';
+const LEGACY_STORAGE_KEY = 'mis-restaurantes:v1';
 
 interface StorageLike {
   getItem(key: string): string | null;
@@ -14,14 +15,13 @@ interface StorageLike {
 export function loadRestaurants(storage: StorageLike = localStorage): SavedRestaurant[] {
   try {
     const raw = storage.getItem(STORAGE_KEY);
-    if (!raw) return [];
+    if (raw) return parseStoredRestaurants(raw);
 
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed
-      .map(normalizeSavedRestaurant)
-      .filter((item): item is SavedRestaurant => Boolean(item));
+    const legacyRaw = storage.getItem(LEGACY_STORAGE_KEY);
+    if (!legacyRaw) return [];
+    const restaurants = parseStoredRestaurants(legacyRaw);
+    storage.setItem(STORAGE_KEY, JSON.stringify(restaurants));
+    return restaurants;
   } catch {
     return [];
   }
@@ -37,13 +37,54 @@ export function saveRestaurants(
 export function parseStoredRestaurants(raw: string): SavedRestaurant[] {
   try {
     const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .map(normalizeSavedRestaurant)
-      .filter((item): item is SavedRestaurant => Boolean(item));
+    return normalizeRestaurantList(parsed);
   } catch {
     return [];
   }
+}
+
+export function parseRestaurantBackup(raw: string): SavedRestaurant[] {
+  const parsed = JSON.parse(raw) as unknown;
+  const list = Array.isArray(parsed)
+    ? parsed
+    : parsed && typeof parsed === 'object' && Array.isArray((parsed as { restaurants?: unknown }).restaurants)
+      ? (parsed as { restaurants: unknown[] }).restaurants
+      : undefined;
+
+  if (!list) throw new Error('El archivo no es una copia válida.');
+  return normalizeRestaurantList(list);
+}
+
+export function mergeRestaurantCollections(
+  current: SavedRestaurant[],
+  imported: SavedRestaurant[],
+): { restaurants: SavedRestaurant[]; added: number; updated: number } {
+  const byPlaceId = new Map(current.map((restaurant) => [restaurant.placeId, restaurant]));
+  let added = 0;
+  let updated = 0;
+
+  for (const restaurant of imported) {
+    const existing = byPlaceId.get(restaurant.placeId);
+    if (!existing) {
+      byPlaceId.set(restaurant.placeId, restaurant);
+      added += 1;
+      continue;
+    }
+
+    if (Date.parse(restaurant.updatedAt) > Date.parse(existing.updatedAt)) {
+      byPlaceId.set(restaurant.placeId, restaurant);
+      updated += 1;
+    }
+  }
+
+  return { restaurants: [...byPlaceId.values()], added, updated };
+}
+
+function normalizeRestaurantList(value: unknown): SavedRestaurant[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map(normalizeSavedRestaurant)
+    .filter((item): item is SavedRestaurant => Boolean(item));
 }
 
 function normalizeSavedRestaurant(value: unknown): SavedRestaurant | undefined {

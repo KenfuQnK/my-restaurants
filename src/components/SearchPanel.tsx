@@ -1,8 +1,9 @@
 import { Link2, LoaderCircle, Search } from 'lucide-react';
-import { useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 
 interface SearchPanelProps {
   loading: boolean;
+  resetToken?: number;
   onSearch: (query: string) => void;
   onImport: (input: string) => void;
 }
@@ -15,9 +16,14 @@ export function SearchPanel({
   loading,
   onSearch,
   onImport,
+  resetToken = 0,
 }: SearchPanelProps) {
   const [query, setQuery] = useState('');
   const isSharedLink = isSharedLinkInput(query);
+
+  useEffect(() => {
+    setQuery('');
+  }, [resetToken]);
 
   function submit(event: FormEvent) {
     event.preventDefault();

@@ -10,6 +10,7 @@ import { RestaurantModal } from './components/RestaurantModal';
 import { SearchPanel } from './components/SearchPanel';
 import { useRestaurants } from './hooks/useRestaurants';
 import { api } from './services/api';
+import { mergeRestaurantCollections, parseRestaurantBackup } from './services/storage';
 import type {
   ExternalPlace,
   ImportSource,
@@ -33,6 +34,7 @@ function App() {
     updatePersonalData,
     toggleFavorite,
     removeRestaurant,
+    replaceRestaurants,
   } = useRestaurants();
 
   const [candidates, setCandidates] = useState<ExternalPlace[]>([]);
@@ -46,6 +48,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [savingPlaceId, setSavingPlaceId] = useState<string>();
   const [toast, setToast] = useState<ToastState>();
+  const [searchResetToken, setSearchResetToken] = useState(0);
   const [filters, setFilters] = useState({
     search: '',
     city: '',
@@ -92,6 +95,11 @@ function App() {
             .filter(Boolean),
         ),
       ).sort((a, b) => a.localeCompare(b, 'es')),
+    [restaurants],
+  );
+
+  const availableTags = useMemo(
+    () => Array.from(new Set(restaurants.flatMap((item) => item.personal.tags))).sort((a, b) => a.localeCompare(b, 'es')),
     [restaurants],
   );
 
@@ -171,6 +179,11 @@ function App() {
       originalInput: query,
       importedAt: new Date().toISOString(),
     });
+  }
+
+  function handleWhatsApp() {
+    setCandidates([]);
+    setSearchResetToken((current) => current + 1);
   }
 
   async function handleImport(input: string) {
@@ -322,13 +335,52 @@ function App() {
     window.setTimeout(() => document.getElementById('restaurant-search')?.focus(), 350);
   }
 
+  function exportBackup() {
+    const backup = {
+      format: 'my-restaurants',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      restaurants,
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `my-restaurants-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setToast({ kind: 'success', message: 'Copia descargada.' });
+  }
+
+  async function importBackup(file: File) {
+    try {
+      const imported = parseRestaurantBackup(await file.text());
+      const result = mergeRestaurantCollections(restaurants, imported);
+      replaceRestaurants(result.restaurants);
+      const changed = result.added + result.updated;
+      setToast({
+        kind: 'success',
+        message: changed
+          ? `Copia importada: ${result.added} nuevos y ${result.updated} actualizados.`
+          : 'La copia ya estaba incluida en tu colección.',
+      });
+    } catch (error) {
+      setToast({ kind: 'error', message: getErrorMessage(error) });
+    }
+  }
+
   function closeModal() {
     setSelectedRestaurant(undefined);
   }
 
   return (
     <div id="top" className="app-shell">
-      <AppHeader count={restaurants.length} onFocusAdd={openAddSection} />
+      <AppHeader
+        count={restaurants.length}
+        onFocusAdd={openAddSection}
+        onExport={exportBackup}
+        onImport={(file) => void importBackup(file)}
+      />
 
       <main className="workspace">
         <div className="content-container">
@@ -338,6 +390,7 @@ function App() {
             </div>
             <SearchPanel
               loading={loading}
+              resetToken={searchResetToken}
               onSearch={handleManualSearch}
               onImport={handleImport}
             />
@@ -364,6 +417,7 @@ function App() {
                 savedPlaceIds={placeIds}
                 onSave={handleSaveCandidate}
                 onClear={clearCandidates}
+                onWhatsApp={handleWhatsApp}
               />
             )}
           </section>
@@ -414,6 +468,7 @@ function App() {
             closeModal();
             setToast({ kind: 'success', message: 'Restaurante eliminado.' });
           }}
+          availableTags={availableTags}
         />
       )}
 

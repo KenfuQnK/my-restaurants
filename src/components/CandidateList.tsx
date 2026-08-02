@@ -1,4 +1,4 @@
-import { Check, ExternalLink, LoaderCircle, MapPin, Plus, Star } from 'lucide-react';
+import { Check, ExternalLink, LoaderCircle, MapPin, MessageCircle, Plus, Star } from 'lucide-react';
 import { api } from '../services/api';
 import type { ExternalPlace } from '../types/restaurant';
 import { formatRating, formatReviewCount, humanizeType } from '../utils/formatters';
@@ -10,6 +10,7 @@ interface CandidateListProps {
   onSave: (place: ExternalPlace) => void;
   mode?: 'save' | 'instagram';
   onClear: () => void;
+  onWhatsApp?: (place: ExternalPlace) => void;
 }
 
 export function CandidateList({
@@ -19,6 +20,7 @@ export function CandidateList({
   onSave,
   mode = 'save',
   onClear,
+  onWhatsApp,
 }: CandidateListProps) {
   if (candidates.length === 0) return null;
 
@@ -68,6 +70,19 @@ export function CandidateList({
                 {place.googleMapsUrl && (
                   <a className="icon-button" href={place.googleMapsUrl} target="_blank" rel="noreferrer" title="Abrir en Google Maps">
                     <ExternalLink size={18} />
+                  </a>
+                )}
+                {place.phone && (
+                  <a
+                    className="icon-button whatsapp-action"
+                    href={`https://wa.me/${place.phone.replace(/\D/g, '')}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="Abrir WhatsApp"
+                    aria-label={`Abrir WhatsApp de ${place.name}`}
+                    onClick={() => onWhatsApp?.(place)}
+                  >
+                    <MessageCircle size={18} />
                   </a>
                 )}
                 <button

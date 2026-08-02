@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { SavedRestaurant } from '../types/restaurant';
-import { loadRestaurants, parseStoredRestaurants, saveRestaurants } from './storage';
+import {
+  loadRestaurants,
+  mergeRestaurantCollections,
+  parseRestaurantBackup,
+  parseStoredRestaurants,
+  saveRestaurants,
+} from './storage';
 
 class MemoryStorage {
   private values = new Map<string, string>();
@@ -68,6 +74,31 @@ test('persiste y recupera varias publicaciones de Instagram', () => {
     recovered[0].instagramPublications[1].normalizedUrl,
     'https://www.instagram.com/reel/REELDOS/',
   );
+});
+
+test('migra la colección desde la clave anterior a my-restaurants', () => {
+  const storage = new MemoryStorage();
+  storage.setItem('mis-restaurantes:v1', JSON.stringify([restaurant]));
+
+  const recovered = loadRestaurants(storage);
+
+  assert.equal(recovered.length, 1);
+  assert.equal(parseStoredRestaurants(storage.getItem('my-restaurants') ?? '').length, 1);
+});
+
+test('importa una copia y conserva los restaurantes que no estén en ella', () => {
+  const imported = parseRestaurantBackup(JSON.stringify({ restaurants: [restaurant] }));
+  const existing = {
+    ...restaurant,
+    id: 'restaurant-2',
+    placeId: 'place-2',
+    external: { ...restaurant.external, placeId: 'place-2', name: 'Otro restaurante' },
+  };
+
+  const result = mergeRestaurantCollections([existing], imported);
+
+  assert.equal(result.added, 1);
+  assert.equal(result.restaurants.length, 2);
 });
 
 test('migra restaurantes existentes que aún no tienen publicaciones', () => {

@@ -6,6 +6,7 @@ import type {
   ImportSource,
   InstagramPublication,
   RestaurantPersonalData,
+  SavedRestaurant,
 } from '../types/restaurant';
 
 export function useRestaurants() {
@@ -53,6 +54,10 @@ export function useRestaurants() {
     setRestaurants((current) => current.filter((item) => item.id !== id));
   }
 
+  function replaceRestaurants(next: SavedRestaurant[]): void {
+    setRestaurants(next);
+  }
+
   return {
     restaurants,
     placeIds,
@@ -60,5 +65,6 @@ export function useRestaurants() {
     updatePersonalData,
     toggleFavorite,
     removeRestaurant,
+    replaceRestaurants,
   };
 }

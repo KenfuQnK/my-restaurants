@@ -22,6 +22,7 @@ interface RestaurantModalProps {
   onSavePersonal: (personal: RestaurantPersonalData) => void;
   onToggleFavorite: () => void;
   onDelete: () => void;
+  availableTags: string[];
 }
 
 export function RestaurantModal({
@@ -30,6 +31,7 @@ export function RestaurantModal({
   onSavePersonal,
   onToggleFavorite,
   onDelete,
+  availableTags,
 }: RestaurantModalProps) {
   const { external, personal, sources } = restaurant;
   const [notes, setNotes] = useState(personal.notes);
@@ -67,6 +69,12 @@ export function RestaurantModal({
     ).slice(0, 12);
 
     onSavePersonal({ ...personal, notes: notes.trim(), tags });
+  }
+
+  function toggleTag(tag: string) {
+    const current = tagsText.split(',').map((item) => item.trim()).filter(Boolean);
+    const next = current.includes(tag) ? current.filter((item) => item !== tag) : [...current, tag];
+    setTagsText(next.join(', '));
   }
 
   function confirmDelete() {
@@ -135,7 +143,17 @@ export function RestaurantModal({
               <h3>Tu información</h3>
               <label>
                 Etiquetas
-                <input value={tagsText} onChange={(event: ChangeEvent<HTMLInputElement>) => setTagsText(event.target.value)} placeholder="pendiente, terraza, cena…" />
+                <input list="saved-restaurant-tags" value={tagsText} onChange={(event: ChangeEvent<HTMLInputElement>) => setTagsText(event.target.value)} placeholder="pendiente, terraza, cena…" />
+                <datalist id="saved-restaurant-tags">
+                  {availableTags.map((tag) => <option key={tag} value={tag} />)}
+                </datalist>
+                {availableTags.length > 0 && (
+                  <div className="saved-tag-options" aria-label="Etiquetas ya creadas">
+                    {availableTags.map((tag) => (
+                      <button className="saved-tag-option" key={tag} type="button" onClick={() => toggleTag(tag)}>{tag}</button>
+                    ))}
+                  </div>
+                )}
                 <small>Separadas por comas.</small>
               </label>
               <label>

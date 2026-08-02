@@ -34,7 +34,12 @@ const allowedOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:5173,http:
 
 const corsOptions: CorsOptions = {
   origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin) || isVercelDeploymentOrigin(origin)) {
+    if (
+      !origin ||
+      allowedOrigins.includes(origin) ||
+      isVercelDeploymentOrigin(origin) ||
+      isLocalViteOrigin(origin)
+    ) {
       callback(null, true);
       return;
     }
@@ -611,4 +616,34 @@ function parseBoolean(value: string | undefined, fallback: boolean): boolean {
 
 function isVercelDeploymentOrigin(origin: string): boolean {
   return process.env.VERCEL === '1' && /^https:\/\/[a-z0-9-]+\.vercel\.app$/iu.test(origin);
+}
+
+function isLocalViteOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    const vitePorts = new Set(['5173', '5174', '5175']);
+    const localHost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+    return (
+      url.protocol === 'http:' &&
+      vitePorts.has(url.port) &&
+      (localHost || isPrivateIpv4(url.hostname))
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isPrivateIpv4(hostname: string): boolean {
+  const parts = hostname.split('.').map(Number);
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
+    return false;
+  }
+
+  const [first, second] = parts;
+  return (
+    first === 127 ||
+    first === 10 ||
+    (first === 172 && second >= 16 && second <= 31) ||
+    (first === 192 && second === 168)
+  );
 }

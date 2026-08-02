@@ -1,4 +1,4 @@
-import { ExternalLink, Heart, MapPin, MessageSquareText, Star } from 'lucide-react';
+import { Heart, MapPin, Star } from 'lucide-react';
 import { api } from '../services/api';
 import type { SavedRestaurant } from '../types/restaurant';
 import { formatRating, formatReviewCount, humanizeType } from '../utils/formatters';
@@ -32,32 +32,18 @@ export function RestaurantCard({ restaurant, onOpen, onToggleFavorite }: Restaur
           </div>
           <p className="address"><MapPin size={15} /> {external.shortAddress ?? external.address ?? 'Dirección no disponible'}</p>
           <p className="reviews">{formatReviewCount(external.reviewCount)}</p>
-
-          {personal.tags.length > 0 && (
-            <div className="tag-list">
-              {personal.tags.slice(0, 3).map((tag) => <span key={tag}>{tag}</span>)}
-              {personal.tags.length > 3 && <span>+{personal.tags.length - 3}</span>}
-            </div>
-          )}
-
-          {personal.notes && (
-            <p className="notes-preview"><MessageSquareText size={15} /> {personal.notes}</p>
-          )}
         </div>
       </button>
 
-      <div className="card-footer-actions">
-        <button
-          className={`icon-button ${personal.favorite ? 'favorite active' : 'favorite'}`}
-          type="button"
-          onClick={onToggleFavorite}
-          title={personal.favorite ? 'Quitar de favoritos' : 'Añadir a favoritos'}
-          aria-label={personal.favorite ? `Quitar ${external.name} de favoritos` : `Añadir ${external.name} a favoritos`}
-        >
-          <Heart size={19} fill={personal.favorite ? 'currentColor' : 'none'} />
-        </button>
-        
-      </div>
+      <button
+        className={`icon-button card-favorite ${personal.favorite ? 'favorite active' : 'favorite'}`}
+        type="button"
+        onClick={onToggleFavorite}
+        title={personal.favorite ? 'Quitar de favoritos' : 'Añadir a favoritos'}
+        aria-label={personal.favorite ? `Quitar ${external.name} de favoritos` : `Añadir ${external.name} a favoritos`}
+      >
+        <Heart size={19} fill={personal.favorite ? 'currentColor' : 'none'} />
+      </button>
     </article>
   );
 }
