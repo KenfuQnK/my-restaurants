@@ -1,11 +1,17 @@
 import type {
   InstagramPublication,
   InstagramPublicationType,
+  MainCategoryId,
   SavedRestaurant,
+  UserLabel,
 } from '../types/restaurant';
+import { detectCategory } from '../domain/categories';
 
 const STORAGE_KEY = 'my-restaurants';
 const LEGACY_STORAGE_KEY = 'mis-restaurantes:v1';
+const RETIVA_ITEMS_KEY = 'retiva:items:v1';
+const RETIVA_LABELS_KEY = 'retiva:labels:v1';
+const CATEGORY_IDS = new Set<MainCategoryId>(['hospitality', 'stays', 'places', 'other']);
 
 interface StorageLike {
   getItem(key: string): string | null;
@@ -14,6 +20,9 @@ interface StorageLike {
 
 export function loadRestaurants(storage: StorageLike = localStorage): SavedRestaurant[] {
   try {
+    const retivaRaw = storage.getItem(RETIVA_ITEMS_KEY);
+    if (retivaRaw) return parseStoredRestaurants(retivaRaw);
+
     const raw = storage.getItem(STORAGE_KEY);
     if (raw) return parseStoredRestaurants(raw);
 
@@ -21,6 +30,7 @@ export function loadRestaurants(storage: StorageLike = localStorage): SavedResta
     if (!legacyRaw) return [];
     const restaurants = parseStoredRestaurants(legacyRaw);
     storage.setItem(STORAGE_KEY, JSON.stringify(restaurants));
+    storage.setItem(RETIVA_ITEMS_KEY, JSON.stringify(restaurants));
     return restaurants;
   } catch {
     return [];
@@ -31,7 +41,24 @@ export function saveRestaurants(
   restaurants: SavedRestaurant[],
   storage: StorageLike = localStorage,
 ): void {
+  storage.setItem(RETIVA_ITEMS_KEY, JSON.stringify(restaurants));
   storage.setItem(STORAGE_KEY, JSON.stringify(restaurants));
+}
+
+export function loadLabels(storage: StorageLike = localStorage): UserLabel[] {
+  try {
+    const raw = storage.getItem(RETIVA_LABELS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(isUserLabel);
+  } catch {
+    return [];
+  }
+}
+
+export function saveLabels(labels: UserLabel[], storage: StorageLike = localStorage): void {
+  storage.setItem(RETIVA_LABELS_KEY, JSON.stringify(labels));
 }
 
 export function parseStoredRestaurants(raw: string): SavedRestaurant[] {
@@ -47,12 +74,21 @@ export function parseRestaurantBackup(raw: string): SavedRestaurant[] {
   const parsed = JSON.parse(raw) as unknown;
   const list = Array.isArray(parsed)
     ? parsed
-    : parsed && typeof parsed === 'object' && Array.isArray((parsed as { restaurants?: unknown }).restaurants)
-      ? (parsed as { restaurants: unknown[] }).restaurants
-      : undefined;
+    : parsed && typeof parsed === 'object' && Array.isArray((parsed as { items?: unknown }).items)
+      ? (parsed as { items: unknown[] }).items
+      : parsed && typeof parsed === 'object' && Array.isArray((parsed as { restaurants?: unknown }).restaurants)
+        ? (parsed as { restaurants: unknown[] }).restaurants
+        : undefined;
 
   if (!list) throw new Error('El archivo no es una copia válida.');
   return normalizeRestaurantList(list);
+}
+
+export function parseLabelsFromBackup(raw: string): UserLabel[] {
+  const parsed = JSON.parse(raw) as unknown;
+  if (!parsed || typeof parsed !== 'object') return [];
+  const labels = (parsed as { labels?: unknown }).labels;
+  return Array.isArray(labels) ? labels.filter(isUserLabel) : [];
 }
 
 export function mergeRestaurantCollections(
@@ -103,12 +139,43 @@ function normalizeSavedRestaurant(value: unknown): SavedRestaurant | undefined {
 
   return {
     ...(candidate as SavedRestaurant),
+    categoryIds: normalizeCategoryIds(candidate),
+    categoryId: undefined,
+    personal: {
+      ...candidate.personal,
+      tags: Array.isArray(candidate.personal.tags) ? candidate.personal.tags : [],
+      labelIds: Array.isArray(candidate.personal.labelIds)
+        ? candidate.personal.labelIds.filter((id): id is string => typeof id === 'string')
+        : [],
+    },
     instagramPublications: Array.isArray(candidate.instagramPublications)
       ? candidate.instagramPublications
           .map(normalizeInstagramPublication)
           .filter((item): item is InstagramPublication => Boolean(item))
       : [],
   };
+}
+
+function normalizeCategoryIds(candidate: Partial<SavedRestaurant>): MainCategoryId[] {
+  const categories = Array.from(new Set(
+    (candidate.categoryIds ?? []).filter((categoryId) => CATEGORY_IDS.has(categoryId)),
+  ));
+  if (categories.length > 0) return categories;
+  if (candidate.categoryId && CATEGORY_IDS.has(candidate.categoryId)) return [candidate.categoryId];
+  return [detectCategory({ place: candidate.external }).categoryId];
+}
+
+function isUserLabel(value: unknown): value is UserLabel {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<UserLabel>;
+  return (
+    typeof candidate.id === 'string' &&
+    typeof candidate.name === 'string' &&
+    typeof candidate.categoryId === 'string' &&
+    CATEGORY_IDS.has(candidate.categoryId as MainCategoryId) &&
+    typeof candidate.createdAt === 'string' &&
+    typeof candidate.updatedAt === 'string'
+  );
 }
 
 function normalizeInstagramPublication(

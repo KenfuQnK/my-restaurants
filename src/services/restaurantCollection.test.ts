@@ -5,7 +5,7 @@ import type {
   ImportSource,
   InstagramPublication,
 } from '../types/restaurant';
-import { upsertRestaurant } from './restaurantCollection';
+import { createManualContent, upsertRestaurant } from './restaurantCollection';
 
 const place: ExternalPlace = {
   placeId: 'place-1',
@@ -86,4 +86,40 @@ test('no duplica una publicación ya asociada y refresca el embed', () => {
   assert.equal(duplicate.publicationAdded, false);
   assert.ok(duplicate.restaurant.instagramPublications[0].embedHtml);
   assert.equal(duplicate.restaurant.instagramPublications[0].id, 'publication-1');
+});
+
+test('crea contenido manual sin exigir una ubicación', () => {
+  const item = createManualContent(
+    {
+      title: 'Receta de focaccia',
+      categoryIds: ['places', 'other'],
+      labelIds: ['label-recetas'],
+    },
+    { createId: () => 'content-1', now: '2026-08-09T10:00:00.000Z' },
+  );
+
+  assert.deepEqual(item.categoryIds, ['places', 'other']);
+  assert.equal(item.external.name, 'Receta de focaccia');
+  assert.equal(item.external.latitude, undefined);
+  assert.deepEqual(item.personal.labelIds, ['label-recetas']);
+});
+
+test('no sobreescribe la organización personal de un lugar existente', () => {
+  const first = upsertRestaurant([], place, source, undefined, {
+    categoryIds: ['hospitality', 'places'],
+    labelIds: ['label-propio'],
+    createId: () => 'restaurant-1',
+  });
+  first.restaurant.personal.notes = 'Pedir mesa de la ventana';
+  first.restaurant.personal.tags = ['aniversario'];
+
+  const repeated = upsertRestaurant(first.restaurants, place, source, firstPublication, {
+    categoryIds: ['other'],
+    labelIds: [],
+  });
+
+  assert.deepEqual(repeated.restaurant.categoryIds, ['hospitality', 'places']);
+  assert.deepEqual(repeated.restaurant.personal.labelIds, ['label-propio']);
+  assert.equal(repeated.restaurant.personal.notes, 'Pedir mesa de la ventana');
+  assert.deepEqual(repeated.restaurant.personal.tags, ['aniversario']);
 });

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mis-restaurantes-v1';
+const CACHE_NAME = 'retiva-v2';
 const APP_SHELL = ['/', '/index.html', '/manifest.json', '/icon.png'];
 
 self.addEventListener('install', (event) => {

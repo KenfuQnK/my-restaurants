@@ -77,6 +77,18 @@ test('detecta varias cuentas reales en texto compartido y URLs de perfil', () =>
   assert.equal(buildInstagramSearchQuery(input, parsed).query, undefined);
 });
 
+test('conserva todas las cuentas mencionadas aunque sean más de ocho', () => {
+  const mentions = Array.from(
+    { length: 12 },
+    (_, index) => `@cuenta_${index + 1}`,
+  ).join(' ');
+  const parsed = parseInstagramUrl('https://www.instagram.com/reel/ABC123/');
+  const accounts = extractInstagramAccountCandidates(mentions, parsed);
+
+  assert.equal(accounts.length, 12);
+  assert.ok(accounts.some((account) => account.username === 'cuenta_12'));
+});
+
 test('genera sugerencias separadas y rebaja cuentas con señales de creador', () => {
   const parsed = parseInstagramUrl('https://www.instagram.com/reel/DWeXll5DIsy/');
   const suggestions = buildInstagramSearchSuggestions('', parsed, [
@@ -319,6 +331,53 @@ test('el Reel real detecta autor y restaurante colaborador desde JSON oEmbed', a
   );
   assert.equal(result.suggestedQuery, 'hugos gaming lounge');
   assert.equal(result.embedStatus, 'available');
+});
+
+test('extrae autores y colaboradores múltiples de los campos estructurados de oEmbed', async () => {
+  const result = await resolveInstagramPublication(
+    'https://www.instagram.com/reel/COLLAB123/',
+    {
+      fetchImpl: async (input) => {
+        const url = new URL(String(input));
+        if (url.hostname === 'www.instagram.com') {
+          return new Response(
+            JSON.stringify({
+              provider_name: 'Instagram',
+              author_name: 'cuenta_autora, restaurante_colaborador',
+              author_url: 'https://www.instagram.com/cuenta_autora',
+              collaborators: [
+                { username: 'restaurante_colaborador' },
+                { user: { username: 'tercera_cuenta' } },
+              ],
+              coauthor_producers: [{ username: 'cuarta_cuenta' }],
+              title: 'Con @quinta_cuenta',
+              html: '<blockquote class="instagram-media" data-instgrm-permalink="https://www.instagram.com/reel/COLLAB123/"></blockquote>',
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+
+        return new Response(
+          JSON.stringify({
+            html: '<blockquote class="instagram-media" data-instgrm-permalink="https://www.instagram.com/reel/COLLAB123/"></blockquote>',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      },
+    },
+  );
+
+  assert.deepEqual(
+    result.accounts.map((account) => account.username).sort(),
+    [
+      'cuarta_cuenta',
+      'cuenta_autora',
+      'quinta_cuenta',
+      'restaurante_colaborador',
+      'tercera_cuenta',
+    ],
+  );
+  assert.equal(result.searchSuggestions.length, 5);
 });
 
 test('un fallo del enriquecimiento JSON conserva el fallback de Graph oEmbed', async () => {

@@ -1,43 +1,78 @@
 import { useEffect, useMemo, useState } from 'react';
-import { upsertRestaurant } from '../services/restaurantCollection';
-import { loadRestaurants, saveRestaurants } from '../services/storage';
+import { createManualContent, upsertRestaurant } from '../services/restaurantCollection';
+import {
+  loadLabels,
+  loadRestaurants,
+  saveLabels,
+  saveRestaurants,
+} from '../services/storage';
 import type {
   ExternalPlace,
   ImportSource,
   InstagramPublication,
+  MainCategoryId,
+  ManualContentInput,
   RestaurantPersonalData,
   SavedRestaurant,
+  UserLabel,
 } from '../types/restaurant';
 
-export function useRestaurants() {
-  const [restaurants, setRestaurants] = useState(loadRestaurants);
+export function useRetiva() {
+  const [items, setItems] = useState(loadRestaurants);
+  const [labels, setLabels] = useState(loadLabels);
 
   useEffect(() => {
-    saveRestaurants(restaurants);
-  }, [restaurants]);
+    saveRestaurants(items);
+  }, [items]);
 
-  const placeIds = useMemo(() => new Set(restaurants.map((item) => item.placeId)), [restaurants]);
+  useEffect(() => {
+    saveLabels(labels);
+  }, [labels]);
 
-  function addRestaurant(
+  const placeIds = useMemo(
+    () => new Set(items.map((item) => item.placeId)),
+    [items],
+  );
+
+  function addPlace(
     place: ExternalPlace,
     source: ImportSource,
     publication?: InstagramPublication,
+    categoryIds?: MainCategoryId[],
+    labelIds: string[] = [],
   ) {
-    const result = upsertRestaurant(restaurants, place, source, publication);
-    setRestaurants(result.restaurants);
+    const result = upsertRestaurant(items, place, source, publication, {
+      categoryIds,
+      labelIds,
+    });
+    setItems(result.restaurants);
     return result;
   }
 
-  function updatePersonalData(id: string, personal: RestaurantPersonalData): void {
+  function addManual(input: ManualContentInput): SavedRestaurant {
+    const item = createManualContent(input);
+    setItems((current) => [item, ...current]);
+    return item;
+  }
+
+  function updateItem(
+    id: string,
+    personal: RestaurantPersonalData,
+    categoryIds: MainCategoryId[],
+  ): void {
     const now = new Date().toISOString();
-    setRestaurants((current) =>
-      current.map((item) => (item.id === id ? { ...item, personal, updatedAt: now } : item)),
+    setItems((current) =>
+      current.map((item) =>
+        item.id === id
+          ? { ...item, personal, categoryIds, categoryId: undefined, updatedAt: now }
+          : item,
+      ),
     );
   }
 
   function toggleFavorite(id: string): void {
     const now = new Date().toISOString();
-    setRestaurants((current) =>
+    setItems((current) =>
       current.map((item) =>
         item.id === id
           ? {
@@ -50,21 +85,111 @@ export function useRestaurants() {
     );
   }
 
-  function removeRestaurant(id: string): void {
-    setRestaurants((current) => current.filter((item) => item.id !== id));
+  function removeItem(id: string): void {
+    setItems((current) => current.filter((item) => item.id !== id));
   }
 
-  function replaceRestaurants(next: SavedRestaurant[]): void {
-    setRestaurants(next);
+  function replaceItems(next: SavedRestaurant[]): void {
+    setItems(next);
+  }
+
+  function replaceLabels(next: UserLabel[]): void {
+    setLabels(next);
+  }
+
+  function createLabel(name: string, categoryId: MainCategoryId): UserLabel | undefined {
+    const cleanName = name.trim().replace(/\s+/gu, ' ');
+    if (!cleanName) return undefined;
+    const duplicate = labels.some(
+      (label) =>
+        label.categoryId === categoryId &&
+        label.name.toLocaleLowerCase('es') === cleanName.toLocaleLowerCase('es'),
+    );
+    if (duplicate) return undefined;
+    const now = new Date().toISOString();
+    const label: UserLabel = {
+      id: createId(),
+      name: cleanName,
+      categoryId,
+      createdAt: now,
+      updatedAt: now,
+    };
+    setLabels((current) => [...current, label]);
+    return label;
+  }
+
+  function updateLabel(id: string, name: string, categoryId: MainCategoryId): boolean {
+    const cleanName = name.trim().replace(/\s+/gu, ' ');
+    if (!cleanName) return false;
+    const duplicate = labels.some(
+      (label) =>
+        label.id !== id &&
+        label.categoryId === categoryId &&
+        label.name.toLocaleLowerCase('es') === cleanName.toLocaleLowerCase('es'),
+    );
+    if (duplicate) return false;
+
+    const previous = labels.find((label) => label.id === id);
+    if (!previous) return false;
+    setLabels((current) =>
+      current.map((label) =>
+        label.id === id
+          ? { ...label, name: cleanName, categoryId, updatedAt: new Date().toISOString() }
+          : label,
+      ),
+    );
+    if (previous.categoryId !== categoryId) {
+      setItems((current) =>
+        current.map((item) =>
+          item.personal.labelIds?.includes(id)
+            ? {
+                ...item,
+                personal: {
+                  ...item.personal,
+                  labelIds: item.personal.labelIds.filter((labelId) => labelId !== id),
+                },
+              }
+            : item,
+        ),
+      );
+    }
+    return true;
+  }
+
+  function deleteLabel(id: string): void {
+    setLabels((current) => current.filter((label) => label.id !== id));
+    setItems((current) =>
+      current.map((item) => ({
+        ...item,
+        personal: {
+          ...item.personal,
+          labelIds: (item.personal.labelIds ?? []).filter((labelId) => labelId !== id),
+        },
+      })),
+    );
   }
 
   return {
-    restaurants,
+    items,
+    labels,
     placeIds,
-    addRestaurant,
-    updatePersonalData,
+    addPlace,
+    addManual,
+    updateItem,
     toggleFavorite,
-    removeRestaurant,
-    replaceRestaurants,
+    removeItem,
+    replaceItems,
+    replaceLabels,
+    createLabel,
+    updateLabel,
+    deleteLabel,
   };
+}
+
+export const useRestaurants = useRetiva;
+
+function createId(): string {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }

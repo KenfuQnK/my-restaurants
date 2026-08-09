@@ -1,4 +1,6 @@
 export type ImportSourceKind = 'manual_search' | 'google_maps' | 'instagram' | 'plain_text';
+export type MainCategoryId = 'hospitality' | 'stays' | 'places' | 'other';
+export type CategoryConfidence = 'high' | 'medium' | 'low';
 export type InstagramPublicationType = 'reel' | 'post' | 'unknown';
 export type InstagramEmbedStatus =
   | 'available'
@@ -101,12 +103,30 @@ export interface ExternalPlace {
   openingHours: string[];
   priceLevel?: string;
   businessStatus?: string;
+  description?: string;
+  sourceUrl?: string;
 }
 
 export interface RestaurantPersonalData {
   notes: string;
   tags: string[];
+  labelIds?: string[];
   favorite: boolean;
+}
+
+export type ItemPersonalData = RestaurantPersonalData;
+
+export interface UserLabel {
+  id: string;
+  name: string;
+  categoryId: MainCategoryId;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CategoryDetection {
+  categoryId: MainCategoryId;
+  confidence: CategoryConfidence;
 }
 
 export interface ImportSource {
@@ -121,10 +141,26 @@ export interface SavedRestaurant {
   placeId: string;
   external: ExternalPlace;
   personal: RestaurantPersonalData;
+  categoryIds?: MainCategoryId[];
+  /** Campo legado conservado para importar copias anteriores. */
+  categoryId?: MainCategoryId;
   sources: ImportSource[];
   instagramPublications: InstagramPublication[];
   createdAt: string;
   updatedAt: string;
+}
+
+export type SavedItem = SavedRestaurant;
+
+export interface ManualContentInput {
+  title: string;
+  description?: string;
+  url?: string;
+  categoryIds: MainCategoryId[];
+  labelIds: string[];
+  notes?: string;
+  publication?: InstagramPublication;
+  source?: ImportSource;
 }
 
 export interface SearchLocation {

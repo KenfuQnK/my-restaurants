@@ -2,15 +2,15 @@ import { divIcon, latLngBounds, type LatLngExpression } from 'leaflet';
 import { useEffect, useMemo } from 'react';
 import { MapContainer, Marker, TileLayer, Tooltip, ZoomControl, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import type { SavedRestaurant } from '../types/restaurant';
+import type { SavedItem } from '../types/restaurant';
 
 interface MapOverviewProps {
-  restaurants: SavedRestaurant[];
-  onOpen: (restaurant: SavedRestaurant) => void;
+  items: SavedItem[];
+  onOpen: (item: SavedItem) => void;
 }
 
-interface LocatedRestaurant {
-  restaurant: SavedRestaurant;
+interface LocatedItem {
+  item: SavedItem;
   position: [number, number];
 }
 
@@ -23,21 +23,21 @@ const restaurantMarker = divIcon({
   tooltipAnchor: [0, -38],
 });
 
-export function MapOverview({ restaurants, onOpen }: MapOverviewProps) {
-  const located = useMemo<LocatedRestaurant[]>(
+export function MapOverview({ items, onOpen }: MapOverviewProps) {
+  const located = useMemo<LocatedItem[]>(
     () =>
-      restaurants.flatMap((restaurant) => {
-        const { latitude, longitude } = restaurant.external;
+      items.flatMap((item) => {
+        const { latitude, longitude } = item.external;
         return typeof latitude === 'number' && typeof longitude === 'number'
-          ? [{ restaurant, position: [latitude, longitude] }]
+          ? [{ item, position: [latitude, longitude] }]
           : [];
       }),
-    [restaurants],
+    [items],
   );
   const positions = useMemo(() => located.map((item) => item.position), [located]);
 
   return (
-    <section className="map-overview" aria-label="Mapa de restaurantes">
+    <section className="map-overview" aria-label="Mapa de contenido guardado">
       <MapContainer
         className="leaflet-map"
         center={BARCELONA_CENTER}
@@ -52,19 +52,19 @@ export function MapOverview({ restaurants, onOpen }: MapOverviewProps) {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <ZoomControl position="topright" />
-        <FitMapToRestaurants positions={positions} />
+        <FitMapToItems positions={positions} />
 
-        {located.map(({ restaurant, position }) => (
+        {located.map(({ item, position }) => (
           <Marker
-            key={restaurant.id}
+            key={item.id}
             position={position}
             icon={restaurantMarker}
-            eventHandlers={{ click: () => onOpen(restaurant) }}
-            title={restaurant.external.name}
+            eventHandlers={{ click: () => onOpen(item) }}
+            title={item.external.name}
           >
             <Tooltip direction="top">
-              <strong>{restaurant.external.name}</strong>
-              <span>{restaurant.external.shortAddress ?? restaurant.external.city}</span>
+              <strong>{item.external.name}</strong>
+              <span>{item.external.shortAddress ?? item.external.city}</span>
             </Tooltip>
           </Marker>
         ))}
@@ -73,7 +73,7 @@ export function MapOverview({ restaurants, onOpen }: MapOverviewProps) {
   );
 }
 
-function FitMapToRestaurants({ positions }: { positions: [number, number][] }) {
+function FitMapToItems({ positions }: { positions: [number, number][] }) {
   const map = useMap();
 
   useEffect(() => {

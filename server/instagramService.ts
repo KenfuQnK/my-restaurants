@@ -4,6 +4,7 @@ const DEFAULT_GRAPH_API_VERSION = 'v26.0';
 const DEFAULT_TIMEOUT_MS = 8_000;
 const MAX_OEMBED_RESPONSE_BYTES = 512_000;
 const MAX_EMBED_HTML_LENGTH = 120_000;
+const MAX_DETECTED_ACCOUNTS = 50;
 const INSTAGRAM_HOSTS = new Set(['instagram.com', 'www.instagram.com', 'm.instagram.com']);
 const RESERVED_PROFILE_PATHS = new Set([
   'about',
@@ -134,6 +135,9 @@ interface MetaOEmbedPayload {
   html?: unknown;
   author_name?: unknown;
   author_url?: unknown;
+  collaborators?: unknown;
+  coauthors?: unknown;
+  coauthor_producers?: unknown;
   thumbnail_url?: unknown;
   title?: unknown;
   media_id?: unknown;
@@ -159,13 +163,14 @@ interface PublicOEmbedMetadata {
   authorName?: string;
   authorUrl?: string;
   authorUsername?: string;
+  authorUsernames: string[];
   caption?: string;
   embedHtml?: string;
   mentionedUsernames: string[];
 }
 
 interface AccountMetadataEvidence {
-  authorUsername?: string;
+  authorUsernames?: string[];
   mentionedUsernames?: string[];
 }
 
@@ -354,6 +359,7 @@ export function extractInstagramAccountCandidates(
       if (!current.sources.includes(source)) current.sources.push(source);
       return;
     }
+    if (candidates.size >= MAX_DETECTED_ACCOUNTS) return;
     candidates.set(key, {
       username: normalizedUsername,
       profileUrl: `https://www.instagram.com/${normalizedUsername}/`,
@@ -362,7 +368,9 @@ export function extractInstagramAccountCandidates(
   };
 
   add(parsed.username, 'profile_url');
-  add(metadata.authorUsername, 'public_oembed_author');
+  for (const username of metadata.authorUsernames ?? []) {
+    add(username, 'public_oembed_author');
+  }
 
   for (const username of metadata.mentionedUsernames ?? []) {
     add(username, 'public_oembed_caption');
@@ -389,8 +397,7 @@ export function extractInstagramAccountCandidates(
       relevance: detectAccountRelevance(candidate),
       discoveryStatus: 'not_configured' as const,
     }))
-    .sort(compareAccountCandidates)
-    .slice(0, 8);
+    .sort(compareAccountCandidates);
 }
 
 export function buildInstagramSearchSuggestions(
@@ -460,7 +467,7 @@ export function buildInstagramSearchSuggestions(
     });
   }
 
-  return suggestions.sort(compareSearchSuggestions).slice(0, 8);
+  return suggestions.sort(compareSearchSuggestions);
 }
 
 export function instagramUsernameToPlaceQuery(username: string): string {
@@ -570,7 +577,7 @@ export async function resolveInstagramPublication(
     requestInstagramPublicOEmbed(parsed, options),
   ]);
   const detectedAccounts = extractInstagramAccountCandidates(input, parsed, {
-    authorUsername: publicOEmbed.authorUsername,
+    authorUsernames: publicOEmbed.authorUsernames,
     mentionedUsernames: publicOEmbed.mentionedUsernames,
   });
   const accounts = await enrichInstagramAccounts(detectedAccounts, options);
@@ -639,7 +646,7 @@ async function requestInstagramPublicOEmbed(
     !parsed.shortcode ||
     !['reel', 'post', 'unknown'].includes(parsed.publicationType)
   ) {
-    return { status: 'skipped', mentionedUsernames: [] };
+    return { status: 'skipped', authorUsernames: [], mentionedUsernames: [] };
   }
 
   const endpoint = new URL('https://www.instagram.com/api/v1/oembed/');
@@ -667,15 +674,11 @@ async function requestInstagramPublicOEmbed(
       typeof payload.author_url === 'string'
         ? normalizeOptionalInstagramProfileUrl(payload.author_url)
         : undefined;
+    const authorUsernames = extractOEmbedAuthorUsernames(payload, authorUrl);
     const authorUsername = authorUrl
       ? parseInstagramUrl(authorUrl).username
-      : normalizeInstagramUsername(
-          typeof payload.author_name === 'string' ? payload.author_name : undefined,
-        );
-    const authorName =
-      normalizeInstagramUsername(
-        typeof payload.author_name === 'string' ? payload.author_name : undefined,
-      ) ?? authorUsername;
+      : authorUsernames[0];
+    const authorName = authorUsername ?? authorUsernames[0];
     const mentionedUsernames = extractInstagramMentions(caption);
     const normalizedEmbed = normalizeOEmbedPayload(payload, parsed.normalizedUrl);
     const providerIsInstagram =
@@ -686,12 +689,16 @@ async function requestInstagramPublicOEmbed(
       status: response.status,
       providerIsInstagram,
       authorName,
+      authorUsernames,
       captionLength: caption?.length ?? 0,
       mentionedUsernames,
       responseFields: compactPresentFields({
         title: payload.title,
         authorName: payload.author_name,
         authorUrl: payload.author_url,
+        collaborators: payload.collaborators,
+        coauthors: payload.coauthors,
+        coauthorProducers: payload.coauthor_producers,
         html: payload.html,
         mediaId: payload.media_id,
       }),
@@ -700,6 +707,7 @@ async function requestInstagramPublicOEmbed(
     if (!response.ok || !providerIsInstagram) {
       return {
         status: response.status === 429 ? 'rate_limited' : 'unavailable',
+        authorUsernames: [],
         mentionedUsernames: [],
       };
     }
@@ -709,6 +717,7 @@ async function requestInstagramPublicOEmbed(
       authorName,
       authorUrl,
       authorUsername,
+      authorUsernames,
       caption,
       embedHtml: normalizedEmbed.embedHtml,
       mentionedUsernames,
@@ -720,7 +729,7 @@ async function requestInstagramPublicOEmbed(
         ? 'timeout'
         : 'network_failure',
     });
-    return { status: 'network_error', mentionedUsernames: [] };
+    return { status: 'network_error', authorUsernames: [], mentionedUsernames: [] };
   } finally {
     clearTimeout(timeout);
   }
@@ -1108,6 +1117,72 @@ function normalizeInstagramUsername(value: string | undefined): string | undefin
     : undefined;
 }
 
+function extractOEmbedAuthorUsernames(
+  payload: MetaOEmbedPayload,
+  normalizedAuthorUrl?: string,
+): string[] {
+  const usernames: string[] = [];
+  const seen = new Set<string>();
+
+  const add = (value: string | undefined) => {
+    const username = normalizeInstagramUsername(value);
+    if (!username) return;
+    const key = username.toLocaleLowerCase('en');
+    if (seen.has(key) || usernames.length >= MAX_DETECTED_ACCOUNTS) return;
+    seen.add(key);
+    usernames.push(username);
+  };
+
+  const addString = (value: string) => {
+    const normalized = value.trim();
+    if (!normalized) return;
+
+    try {
+      const profile = parseInstagramUrl(normalized);
+      if (profile.username) {
+        add(profile.username);
+        return;
+      }
+    } catch {
+      // El valor puede ser un username o una lista de autores, no necesariamente una URL.
+    }
+
+    for (const username of extractInstagramMentions(normalized)) add(username);
+    add(normalized);
+
+    for (const part of normalized.split(/\s*(?:,|&|\+|\band\b|\by\b)\s*/giu)) {
+      add(part);
+    }
+  };
+
+  const addStructuredAuthors = (value: unknown, depth = 0) => {
+    if (depth > 3 || value === undefined || value === null) return;
+    if (typeof value === 'string') {
+      addString(value);
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) addStructuredAuthors(item, depth + 1);
+      return;
+    }
+    if (typeof value !== 'object') return;
+
+    const author = value as Record<string, unknown>;
+    for (const key of ['username', 'author_name', 'author_url', 'user']) {
+      addStructuredAuthors(author[key], depth + 1);
+    }
+  };
+
+  if (normalizedAuthorUrl) addString(normalizedAuthorUrl);
+  addStructuredAuthors(payload.author_name);
+  addStructuredAuthors(payload.author_url);
+  addStructuredAuthors(payload.collaborators);
+  addStructuredAuthors(payload.coauthors);
+  addStructuredAuthors(payload.coauthor_producers);
+
+  return usernames;
+}
+
 function detectAccountRelevance(
   account: Pick<
     InstagramAccountCandidate,
@@ -1199,7 +1274,7 @@ function extractInstagramMentions(value: string | undefined): string[] {
     if (seen.has(key)) continue;
     seen.add(key);
     usernames.push(username);
-    if (usernames.length >= 12) break;
+    if (usernames.length >= MAX_DETECTED_ACCOUNTS) break;
   }
   return usernames;
 }

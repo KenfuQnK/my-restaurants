@@ -114,33 +114,6 @@ export const InstagramEmbed = memo(function InstagramEmbed({
           </button>
         </div>
       )}
-
-      <div className="instagram-publication-footer">
-        <div>
-          <strong>
-            {publication.publicationType === 'reel'
-              ? 'Reel de Instagram'
-              : publication.publicationType === 'post'
-                ? 'Publicación de Instagram'
-                : 'Contenido de Instagram'}
-          </strong>
-          {publication.authorName && <span>@{publication.authorName.replace(/^@/, '')}</span>}
-        </div>
-        <div className="instagram-publication-actions">
-          {/* {trustedHtml && embedState === 'ready' && (
-            <button type="button" onClick={() => setAttempt((current) => current + 1)}>
-              <RotateCw size={14} /> Recargar
-            </button>
-          )} */}
-          <a
-            href={publication.normalizedUrl}
-            target="_blank"
-            rel="noreferrer noopener"
-          >
-            Abrir en Instagram <ExternalLink size={15} />
-          </a>
-        </div>
-      </div>
     </article>
   );
 });

@@ -1,12 +1,12 @@
 {
-  "name": "Mis Restaurantes",
-  "short_name": "Restaurantes",
+  "name": "Retiva",
+  "short_name": "Retiva",
   "display": "standalone",
   "start_url": "/",
   "scope": "/",
   "background_color": "#ffffff",
-  "theme_color": "#173f35",
-  "description": "Guarda y organiza restaurantes desde Google Maps, Instagram o una búsqueda directa.",
+  "theme_color": "#078a57",
+  "description": "Guarda y organiza lugares, estancias, restaurantes e ideas.",
   "share_target": {
     "action": "/share-target",
     "method": "POST",

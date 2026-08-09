@@ -4,6 +4,7 @@ import type { SavedRestaurant } from '../types/restaurant';
 import {
   loadRestaurants,
   mergeRestaurantCollections,
+  parseLabelsFromBackup,
   parseRestaurantBackup,
   parseStoredRestaurants,
   saveRestaurants,
@@ -102,12 +103,24 @@ test('importa una copia y conserva los restaurantes que no estén en ella', () =
 });
 
 test('migra restaurantes existentes que aún no tienen publicaciones', () => {
-  const legacy = { ...restaurant } as Partial<SavedRestaurant>;
+  const legacy = { ...restaurant, categoryId: 'hospitality' as const } as Partial<SavedRestaurant>;
   delete legacy.instagramPublications;
   const recovered = parseStoredRestaurants(JSON.stringify([legacy]));
 
   assert.equal(recovered.length, 1);
   assert.deepEqual(recovered[0].instagramPublications, []);
+  assert.deepEqual(recovered[0].categoryIds, ['hospitality']);
+  assert.equal(recovered[0].categoryId, undefined);
+});
+
+test('persiste varias categorías sin duplicarlas', () => {
+  const categorized = {
+    ...restaurant,
+    categoryIds: ['hospitality', 'places', 'hospitality'],
+  } as SavedRestaurant;
+  const recovered = parseStoredRestaurants(JSON.stringify([categorized]));
+
+  assert.deepEqual(recovered[0].categoryIds, ['hospitality', 'places']);
 });
 
 test('descarta URLs de publicaciones manipuladas al recuperar datos', () => {
@@ -139,4 +152,21 @@ test('no recupera miniaturas temporales de CDN', () => {
   const recovered = parseStoredRestaurants(JSON.stringify([withThumbnail]));
 
   assert.equal(recovered[0].instagramPublications[0].thumbnailUrl, undefined);
+});
+
+test('recupera los labels incluidos en una copia de Retiva', () => {
+  const labels = parseLabelsFromBackup(JSON.stringify({
+    format: 'retiva',
+    items: [restaurant],
+    labels: [{
+      id: 'label-1',
+      name: 'Brunch',
+      categoryId: 'hospitality',
+      createdAt: '2026-08-09T10:00:00.000Z',
+      updatedAt: '2026-08-09T10:00:00.000Z',
+    }],
+  }));
+
+  assert.equal(labels.length, 1);
+  assert.equal(labels[0].name, 'Brunch');
 });
