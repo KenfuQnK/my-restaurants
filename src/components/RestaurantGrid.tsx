@@ -1,10 +1,9 @@
 import { BookmarkPlus } from 'lucide-react';
-import type { SavedItem, UserLabel } from '../types/restaurant';
+import type { SavedItem } from '../types/restaurant';
 import { RestaurantCard } from './RestaurantCard';
 
 interface RestaurantGridProps {
   items: SavedItem[];
-  labels: UserLabel[];
   hasAnyItems: boolean;
   emptyTitle: string;
   onOpen: (item: SavedItem) => void;
@@ -12,7 +11,7 @@ interface RestaurantGridProps {
   onAdd: () => void;
 }
 
-export function RestaurantGrid({ items, labels, hasAnyItems, emptyTitle, onOpen, onToggleFavorite, onAdd }: RestaurantGridProps) {
+export function RestaurantGrid({ items, hasAnyItems, emptyTitle, onOpen, onToggleFavorite, onAdd }: RestaurantGridProps) {
   if (items.length === 0) {
     return (
       <div className="empty-state">
@@ -27,7 +26,7 @@ export function RestaurantGrid({ items, labels, hasAnyItems, emptyTitle, onOpen,
   return (
     <div className="restaurant-grid">
       {items.map((item) => (
-        <RestaurantCard key={item.id} item={item} labels={labels} onOpen={() => onOpen(item)} onToggleFavorite={() => onToggleFavorite(item.id)} />
+        <RestaurantCard key={item.id} item={item} onOpen={() => onOpen(item)} onToggleFavorite={() => onToggleFavorite(item.id)} />
       ))}
     </div>
   );

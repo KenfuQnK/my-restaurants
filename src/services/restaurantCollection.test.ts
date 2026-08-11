@@ -5,7 +5,7 @@ import type {
   ImportSource,
   InstagramPublication,
 } from '../types/restaurant';
-import { createManualContent, upsertRestaurant } from './restaurantCollection';
+import { upsertRestaurant } from './restaurantCollection';
 
 const place: ExternalPlace = {
   placeId: 'place-1',
@@ -86,22 +86,6 @@ test('no duplica una publicación ya asociada y refresca el embed', () => {
   assert.equal(duplicate.publicationAdded, false);
   assert.ok(duplicate.restaurant.instagramPublications[0].embedHtml);
   assert.equal(duplicate.restaurant.instagramPublications[0].id, 'publication-1');
-});
-
-test('crea contenido manual sin exigir una ubicación', () => {
-  const item = createManualContent(
-    {
-      title: 'Receta de focaccia',
-      categoryIds: ['places', 'other'],
-      labelIds: ['label-recetas'],
-    },
-    { createId: () => 'content-1', now: '2026-08-09T10:00:00.000Z' },
-  );
-
-  assert.deepEqual(item.categoryIds, ['places', 'other']);
-  assert.equal(item.external.name, 'Receta de focaccia');
-  assert.equal(item.external.latitude, undefined);
-  assert.deepEqual(item.personal.labelIds, ['label-recetas']);
 });
 
 test('no sobreescribe la organización personal de un lugar existente', () => {

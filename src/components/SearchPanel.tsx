@@ -8,14 +8,13 @@ interface SearchPanelProps {
   inputId?: string;
   onSearch: (query: string) => void;
   onImport: (input: string) => void;
-  onManualAdd: () => void;
 }
 
 export function isSharedLinkInput(value: string): boolean {
   return /(?:https?:\/\/|www\.)/iu.test(value);
 }
 
-export function SearchPanel({ loading, onSearch, onImport, onManualAdd, resetToken = 0, initialValue = '', inputId = 'content-search' }: SearchPanelProps) {
+export function SearchPanel({ loading, onSearch, onImport, resetToken = 0, initialValue = '', inputId = 'content-search' }: SearchPanelProps) {
   const [query, setQuery] = useState(initialValue);
   const isSharedLink = isSharedLinkInput(query);
 
@@ -48,7 +47,6 @@ export function SearchPanel({ loading, onSearch, onImport, onManualAdd, resetTok
           Buscar
         </button>
       </form>
-      <button className="manual-add-link" type="button" onClick={onManualAdd}>¿No es un lugar? Añádelo manualmente</button>
     </section>
   );
 }

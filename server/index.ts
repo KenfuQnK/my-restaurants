@@ -621,11 +621,9 @@ function isVercelDeploymentOrigin(origin: string): boolean {
 function isLocalViteOrigin(origin: string): boolean {
   try {
     const url = new URL(origin);
-    const vitePorts = new Set(['5173', '5174', '5175']);
     const localHost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
     return (
       url.protocol === 'http:' &&
-      vitePorts.has(url.port) &&
       (localHost || isPrivateIpv4(url.hostname))
     );
   } catch {

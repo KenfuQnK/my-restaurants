@@ -8,17 +8,16 @@ import {
   MapPin,
   NotebookPen,
   Phone,
-  Save,
   Star,
   Tag,
   Trash2,
   X,
 } from 'lucide-react';
-import { useEffect, useMemo, useState, type ChangeEvent, type MouseEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type MouseEvent } from 'react';
 import { getCategory, getItemCategories } from '../domain/categories';
 import { api } from '../services/api';
 import type { MainCategoryId, RestaurantPersonalData, SavedItem, UserLabel } from '../types/restaurant';
-import { formatDate, formatRating, formatReviewCount } from '../utils/formatters';
+import { formatRating, formatReviewCount } from '../utils/formatters';
 import { CategoryButtons, LabelPicker } from './CategoryControls';
 import { InstagramEmbed } from './InstagramEmbed';
 
@@ -58,6 +57,9 @@ export function RestaurantModal({ item, onClose, onSave, onToggleFavorite, onDel
   const [tags, setTags] = useState(personal.tags.join(', '));
   const [categoryIds, setCategoryIds] = useState<MainCategoryId[]>(getItemCategories(item));
   const [labelIds, setLabelIds] = useState<string[]>(personal.labelIds ?? []);
+  const onSaveRef = useRef(onSave);
+  const personalRef = useRef(personal);
+  const savedSignatureRef = useRef(getPersonalSignature(personal.notes, personal.tags.join(', '), personal.labelIds ?? [], getItemCategories(item)));
   const instagramSource = sources.find((source) => source.kind === 'instagram' && source.url);
   const instagramPublications = item.instagramPublications ?? [];
   const primaryInstagramUrl = instagramPublications[0]?.normalizedUrl ?? instagramSource?.url;
@@ -68,11 +70,27 @@ export function RestaurantModal({ item, onClose, onSave, onToggleFavorite, onDel
   const hasPlaceDetails = Boolean(external.address || external.phone || external.openingHours.length || external.googleMapsUrl);
 
   useEffect(() => {
-    setNotes(personal.notes);
-    setTags(personal.tags.join(', '));
-    setCategoryIds(getItemCategories(item));
-    setLabelIds(personal.labelIds ?? []);
-  }, [item, personal.labelIds, personal.notes, personal.tags]);
+    onSaveRef.current = onSave;
+    personalRef.current = personal;
+  }, [onSave, personal]);
+
+  useEffect(() => {
+    const nextTags = tags.split(',').map((tag) => tag.trim()).filter(Boolean);
+    const nextPersonal = {
+      ...personalRef.current,
+      notes: notes.trim(),
+      tags: nextTags,
+      labelIds,
+    };
+    const signature = getPersonalSignature(notes, tags, labelIds, categoryIds);
+    if (signature === savedSignatureRef.current) return;
+
+    const timeout = window.setTimeout(() => {
+      savedSignatureRef.current = signature;
+      onSaveRef.current(nextPersonal, categoryIds);
+    }, 300);
+    return () => window.clearTimeout(timeout);
+  }, [categoryIds, labelIds, notes, tags]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -92,15 +110,6 @@ export function RestaurantModal({ item, onClose, onSave, onToggleFavorite, onDel
       const label = labels.find((candidate) => candidate.id === id);
       return Boolean(label && next.includes(label.categoryId));
     }));
-  }
-
-  function savePersonalData() {
-    onSave({
-      ...personal,
-      notes: notes.trim(),
-      tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean),
-      labelIds,
-    }, categoryIds);
   }
 
   function confirmDelete() {
@@ -151,14 +160,20 @@ export function RestaurantModal({ item, onClose, onSave, onToggleFavorite, onDel
           <div className={`detail-columns ${hasPlaceDetails ? '' : 'single'}`}>
             {hasPlaceDetails && (
               <section className="detail-panel information-panel">
-                <div className="detail-panel-heading"><h3>Información</h3><span className="section-icon"><Info size={21} /></span></div>
+                <div className="detail-panel-heading">
+                  <h3>Información</h3>
+</div>
 
                 {external.phone && (
+                  <>
                   <a className="phone-action" href={`tel:${external.phone}`}>
                     <span className="phone-icon"><Phone size={21} /></span>
                     <strong>{external.phone}</strong>
-                    <ChevronRight size={22} />
+                    <ChevronRight size={22}/>
                   </a>
+                  <div className="separator">
+                  </div>
+                  </>
                 )}
 
                 {external.openingHours.length > 0 && (
@@ -196,7 +211,6 @@ export function RestaurantModal({ item, onClose, onSave, onToggleFavorite, onDel
                 <span>Notas</span>
                 <span className="personal-input textarea-input"><NotebookPen size={21} /><textarea value={notes} onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setNotes(event.target.value)} rows={4} placeholder="Qué pedir, quién te lo recomendó…" /></span>
               </label>
-              <button className="button button-primary personal-save" type="button" onClick={savePersonalData}><Save size={20} /> Guardar cambios</button>
             </section>
           </div>
 
@@ -207,11 +221,20 @@ export function RestaurantModal({ item, onClose, onSave, onToggleFavorite, onDel
             </section>
           )}
 
-          <div className="modal-meta"><span>Guardado el {formatDate(item.createdAt)}</span><button className="danger-button" type="button" onClick={confirmDelete}><Trash2 size={16} /> Eliminar</button></div>
+          <div className="modal-meta"><button className="danger-button" type="button" onClick={confirmDelete}><Trash2 size={16} /> Eliminar</button></div>
         </div>
       </section>
     </div>
   );
+}
+
+function getPersonalSignature(notes: string, tags: string, labelIds: string[], categoryIds: MainCategoryId[]): string {
+  return JSON.stringify({
+    notes: notes.trim(),
+    tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+    labelIds,
+    categoryIds,
+  });
 }
 
 function ScheduleRow({ entry, scale }: { entry: DaySchedule; scale: ScheduleScale }) {

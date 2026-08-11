@@ -3,7 +3,6 @@ import type {
   ImportSource,
   InstagramPublication,
   MainCategoryId,
-  ManualContentInput,
   SavedRestaurant,
 } from '../types/restaurant';
 import { detectCategory } from '../domain/categories';
@@ -90,51 +89,6 @@ export function upsertRestaurant(
     created: true,
     publicationAdded: Boolean(publication),
   };
-}
-
-export function createManualContent(
-  input: ManualContentInput,
-  options: UpsertOptions = {},
-): SavedRestaurant {
-  const now = options.now ?? new Date().toISOString();
-  const id = options.createId?.() ?? createId();
-  const placeId = `content-${id}`;
-  const source = input.source ?? {
-    kind: 'plain_text' as const,
-    originalInput: input.title,
-    url: input.url,
-    importedAt: now,
-  };
-
-  const item: SavedRestaurant = {
-    id,
-    placeId,
-    categoryIds: input.categoryIds,
-    external: {
-      placeId,
-      name: input.title.trim(),
-      description: input.description?.trim() || undefined,
-      sourceUrl: input.url?.trim() || undefined,
-      website: input.url?.trim() || undefined,
-      primaryType: 'saved_content',
-      primaryTypeLabel: 'Contenido guardado',
-      types: ['saved_content'],
-      photos: [],
-      openingHours: [],
-    },
-    personal: {
-      notes: input.notes?.trim() ?? '',
-      tags: [],
-      labelIds: input.labelIds,
-      favorite: false,
-    },
-    sources: [source],
-    instagramPublications: input.publication ? [input.publication] : [],
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  return item;
 }
 
 function appendSource(sources: ImportSource[], source: ImportSource): ImportSource[] {

@@ -7,7 +7,6 @@ import { CandidateList } from './components/CandidateList';
 import { FilterBar, type CollectionViewMode } from './components/FilterBar';
 import { ImportPanel } from './components/ImportPanel';
 import { LabelManagerModal } from './components/LabelManagerModal';
-import { ManualItemForm } from './components/ManualItemForm';
 import { MapOverview } from './components/MapOverview';
 import { RestaurantGrid } from './components/RestaurantGrid';
 import { RestaurantModal } from './components/RestaurantModal';
@@ -24,7 +23,6 @@ import type {
   ImportSource,
   InstagramImportStage,
   MainCategoryId,
-  ManualContentInput,
   ResolvedInstagramPublication,
   SavedItem,
   SearchLocation,
@@ -36,20 +34,12 @@ interface ToastState {
   message: string;
 }
 
-interface ManualPrefill {
-  title?: string;
-  url?: string;
-}
-
-const FAVORITES_DESCRIPTION = 'Todo lo que has marcado como favorito, reunido en un solo lugar.';
-
 function App() {
   const {
     items,
     labels,
     placeIds,
     addPlace,
-    addManual,
     updateItem,
     toggleFavorite,
     removeItem,
@@ -68,7 +58,6 @@ function App() {
   const [importError, setImportError] = useState<string>();
   const [pendingSource, setPendingSource] = useState<ImportSource>();
   const [selectedItem, setSelectedItem] = useState<SavedItem>();
-  const [manualPrefill, setManualPrefill] = useState<ManualPrefill>();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [modalSearchValue, setModalSearchValue] = useState('');
@@ -144,7 +133,6 @@ function App() {
 
   const activeCategory = activeTarget === 'favorites' ? undefined : getCategory(activeTarget);
   const pageTitle = activeTarget === 'favorites' ? 'Favoritos' : activeCategory?.name ?? 'Retiva';
-  const pageDescription = activeTarget === 'favorites' ? FAVORITES_DESCRIPTION : activeCategory?.shortDescription ?? '';
   const supportsMap = Boolean(activeCategory?.supportsMap);
   const homeSearchTitle = activeTarget === 'hospitality'
     ? '¿Dónde comemos hoy?'
@@ -250,9 +238,8 @@ function App() {
     setLoading(false);
   }
 
-  function handleManualSearch(query: string) {
+  function handlePlaceSearch(query: string) {
     resetInstagramSession();
-    setManualPrefill(undefined);
     void runSearch(query, { kind: 'manual_search', originalInput: query, importedAt: new Date().toISOString() });
   }
 
@@ -262,7 +249,6 @@ function App() {
     setInstagramImport(undefined);
     setInstagramStage('validating');
     setImportError(undefined);
-    setManualPrefill(undefined);
     try {
       const resolved = await api.resolveImport(input);
       if (resolved.source === 'instagram') {
@@ -284,8 +270,7 @@ function App() {
         return;
       }
 
-      const url = resolved.url ?? resolved.finalUrl;
-      setManualPrefill({ title: resolved.query || titleFromUrl(url), url });
+      setToast({ kind: 'error', message: 'Este enlace no se puede importar.' });
     } catch (error) {
       const message = getErrorMessage(error);
       setInstagramStage('error');
@@ -347,14 +332,6 @@ function App() {
     }
   }
 
-  function handleManualContentSave(input: ManualContentInput) {
-    const item = addManual(input);
-    closeSearchModal();
-    setSelectedItem(item);
-    setActiveTarget(input.categoryIds[0]);
-    setToast({ kind: 'success', message: 'Contenido guardado.' });
-  }
-
   function clearCandidates() {
     setCandidates([]);
     if (instagramImport && instagramStage !== 'saved') setInstagramStage('awaiting_search');
@@ -382,7 +359,6 @@ function App() {
 
   function resetSearchSession() {
     setPendingSource(undefined);
-    setManualPrefill(undefined);
     resetInstagramSession();
     setSearchResetToken((current) => current + 1);
   }
@@ -396,7 +372,7 @@ function App() {
     resetSearchSession();
     setModalSearchValue(query);
     setSearchOpen(true);
-    handleManualSearch(query);
+    handlePlaceSearch(query);
   }
 
   function importFromHome(input: string) {
@@ -404,16 +380,6 @@ function App() {
     setModalSearchValue(input);
     setSearchOpen(true);
     void handleImport(input);
-  }
-
-  function openManualAddFromHome() {
-    openSearchModal();
-    setManualPrefill({});
-  }
-
-  function openManualAdd() {
-    resetInstagramSession();
-    setManualPrefill({});
   }
 
   function exportBackup() {
@@ -451,14 +417,16 @@ function App() {
 
   return (
     <div id="top" className="app-shell">
-      <AppHeader count={items.length} onFocusAdd={openSearchModal} onOpenSettings={() => setSettingsOpen(true)} onExport={exportBackup} onImport={(file) => void importBackup(file)} />
+      <AppHeader onFocusAdd={openSearchModal} onOpenSettings={() => setSettingsOpen(true)} onExport={exportBackup} onImport={(file) => void importBackup(file)} />
 
       <main className="workspace">
         <div className="content-container">
           {homeSearchTitle ? (
             <section className="command-center home-search-command" aria-labelledby="home-search-title">
-              <div className="command-heading"><h1 id="home-search-title">{homeSearchTitle}</h1></div>
-              <SearchPanel loading={loading} resetToken={searchResetToken} inputId="home-content-search" onSearch={searchFromHome} onImport={importFromHome} onManualAdd={openManualAddFromHome} />
+              <div className="command-heading">
+                <h1 id="home-search-title">{homeSearchTitle}</h1>
+              </div>
+              <SearchPanel loading={loading} resetToken={searchResetToken} inputId="home-content-search" onSearch={searchFromHome} onImport={importFromHome} />
             </section>
           ) : (
             <div className="search-launch-bar">
@@ -466,11 +434,11 @@ function App() {
             </div>
           )}
 
-          <FilterBar title={pageTitle} description={pageDescription} search={filters.search} city={filters.city} labelId={filters.labelId} cities={cities} labels={labels} categoryId={activeTarget === 'favorites' ? undefined : activeTarget} resultCount={filteredItems.length} supportsMap={supportsMap} viewMode={viewMode} onViewModeChange={setViewMode} onChange={(next) => setFilters((current) => ({ ...current, ...next }))} />
+          <FilterBar search={filters.search} city={filters.city} labelId={filters.labelId} cities={cities} labels={labels} categoryId={activeTarget === 'favorites' ? undefined : activeTarget} supportsMap={supportsMap} viewMode={viewMode} onViewModeChange={setViewMode} onChange={(next) => setFilters((current) => ({ ...current, ...next }))} />
 
           {supportsMap && viewMode === 'map'
             ? <MapOverview items={filteredItems} onOpen={setSelectedItem} />
-            : <RestaurantGrid items={filteredItems} labels={labels} hasAnyItems={sectionItems.length > 0} emptyTitle={activeTarget === 'favorites' ? 'Aún no tienes favoritos' : `Aún no has guardado nada en ${pageTitle}`} onOpen={setSelectedItem} onToggleFavorite={toggleFavorite} onAdd={openSearchModal} />}
+            : <RestaurantGrid items={filteredItems} hasAnyItems={sectionItems.length > 0} emptyTitle={activeTarget === 'favorites' ? 'Aún no tienes favoritos' : `Aún no has guardado nada en ${pageTitle}`} onOpen={setSelectedItem} onToggleFavorite={toggleFavorite} onAdd={openSearchModal} />}
         </div>
       </main>
 
@@ -485,8 +453,7 @@ function App() {
               <button className="icon-button" type="button" onClick={closeSearchModal} aria-label="Cerrar buscador"><X size={21} /></button>
             </div>
             <div className="command-center search-modal-content">
-              <SearchPanel loading={loading} resetToken={searchResetToken} initialValue={modalSearchValue} onSearch={handleManualSearch} onImport={handleImport} onManualAdd={openManualAdd} />
-              {manualPrefill && <ManualItemForm initialCategory={activeTarget === 'favorites' ? 'other' : activeTarget} initialTitle={manualPrefill.title} initialUrl={manualPrefill.url} labels={labels} onSave={handleManualContentSave} onClose={() => setManualPrefill(undefined)} />}
+              <SearchPanel loading={loading} resetToken={searchResetToken} initialValue={modalSearchValue} onSearch={handlePlaceSearch} onImport={handleImport} />
               {instagramImport && <ImportPanel instagram={instagramImport} instagramStage={instagramStage} importError={importError} detection={instagramDetection} labels={labels} onInstagramSearch={handleInstagramSearch} candidates={candidates} savingPlaceId={savingPlaceId} savedPlaceIds={placeIds} savedItems={items} onSaveCandidate={handleSaveInstagramCandidate} onOpenExisting={openExistingItem} onClearCandidates={clearCandidates} onClose={resetInstagramSession} />}
               {!instagramImport && <CandidateList candidates={candidates} savingPlaceId={savingPlaceId} savedPlaceIds={placeIds} savedItems={items} labels={labels} onSave={handleSaveCandidate} onOpenExisting={openExistingItem} onClear={clearCandidates} onWhatsApp={() => { setCandidates([]); setSearchResetToken((current) => current + 1); }} />}
             </div>
@@ -494,7 +461,7 @@ function App() {
         </div>
       )}
 
-      {selectedItem && <RestaurantModal item={selectedItem} labels={labels} onClose={() => setSelectedItem(undefined)} onToggleFavorite={() => { toggleFavorite(selectedItem.id); setSelectedItem((current) => current ? { ...current, personal: { ...current.personal, favorite: !current.personal.favorite } } : current); }} onSave={(personal, categoryIds) => { updateItem(selectedItem.id, personal, categoryIds); setSelectedItem((current) => current ? { ...current, personal, categoryIds, categoryId: undefined } : current); setToast({ kind: 'success', message: 'Cambios guardados.' }); }} onDelete={() => { removeItem(selectedItem.id); setSelectedItem(undefined); setToast({ kind: 'success', message: 'Contenido eliminado.' }); }} />}
+      {selectedItem && <RestaurantModal key={selectedItem.id} item={selectedItem} labels={labels} onClose={() => setSelectedItem(undefined)} onToggleFavorite={() => { toggleFavorite(selectedItem.id); setSelectedItem((current) => current ? { ...current, personal: { ...current.personal, favorite: !current.personal.favorite } } : current); }} onSave={(personal, categoryIds) => { updateItem(selectedItem.id, personal, categoryIds); setSelectedItem((current) => current ? { ...current, personal, categoryIds, categoryId: undefined } : current); }} onDelete={() => { removeItem(selectedItem.id); setSelectedItem(undefined); setToast({ kind: 'success', message: 'Contenido eliminado.' }); }} />}
 
       {settingsOpen && <LabelManagerModal labels={labels} onClose={() => setSettingsOpen(false)} onCreate={(name, categoryId) => Boolean(createLabel(name, categoryId))} onUpdate={updateLabel} onDelete={deleteLabel} />}
 
@@ -510,15 +477,6 @@ function mergeLabels(current: UserLabel[], imported: UserLabel[]): UserLabel[] {
     if (!existing || Date.parse(label.updatedAt) > Date.parse(existing.updatedAt)) byId.set(label.id, label);
   }
   return [...byId.values()];
-}
-
-function titleFromUrl(value?: string): string {
-  if (!value) return '';
-  try {
-    return new URL(value).hostname.replace(/^www\./u, '');
-  } catch {
-    return '';
-  }
 }
 
 function getErrorMessage(error: unknown): string {

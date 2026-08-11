@@ -152,17 +152,6 @@ export interface SavedRestaurant {
 
 export type SavedItem = SavedRestaurant;
 
-export interface ManualContentInput {
-  title: string;
-  description?: string;
-  url?: string;
-  categoryIds: MainCategoryId[];
-  labelIds: string[];
-  notes?: string;
-  publication?: InstagramPublication;
-  source?: ImportSource;
-}
-
 export interface SearchLocation {
   latitude: number;
   longitude: number;

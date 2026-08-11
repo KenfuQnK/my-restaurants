@@ -5,15 +5,12 @@ import type { MainCategoryId, UserLabel } from '../types/restaurant';
 export type CollectionViewMode = 'list' | 'map';
 
 interface FilterBarProps {
-  title: string;
-  description: string;
   search: string;
   city: string;
   labelId: string;
   cities: string[];
   labels: UserLabel[];
   categoryId?: MainCategoryId;
-  resultCount: number;
   supportsMap: boolean;
   viewMode: CollectionViewMode;
   onViewModeChange: (mode: CollectionViewMode) => void;
@@ -21,15 +18,12 @@ interface FilterBarProps {
 }
 
 export function FilterBar({
-  title,
-  description,
   search,
   city,
   labelId,
   cities,
   labels,
   categoryId,
-  resultCount,
   supportsMap,
   viewMode,
   onViewModeChange,
@@ -41,25 +35,20 @@ export function FilterBar({
 
   return (
     <section className="collection-toolbar" aria-label="Organizar contenido">
-      <div className="collection-heading-row">
-        <div className="collection-title">
-          <span className="eyebrow">{resultCount === 1 ? '1 elemento' : `${resultCount} elementos`}</span>
-          <h2>{title}</h2>
-          <p>{description}</p>
+      <div className="filter-toolbar-row">
+        <div className="filter-controls">
+          <label className="compact-search"><Search size={17} /><input value={search} onChange={(event: ChangeEvent<HTMLInputElement>) => onChange({ search: event.target.value })} placeholder="Buscar en esta sección" aria-label="Buscar en esta sección" /></label>
+          {cities.length > 0 && (
+            <label className="select-control"><MapPin size={16} /><select value={city} onChange={(event: ChangeEvent<HTMLSelectElement>) => onChange({ city: event.target.value })} aria-label="Filtrar por ciudad"><option value="">Todas las ciudades</option>{cities.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+          )}
         </div>
-        {supportsMap && (
+
+        {supportsMap ? (
           <div className="view-toggle" aria-label="Cambiar vista">
             <button className={viewMode === 'list' ? 'active' : ''} type="button" onClick={() => onViewModeChange('list')} aria-pressed={viewMode === 'list'}><LayoutGrid size={17} /> Lista</button>
             <button className={viewMode === 'map' ? 'active' : ''} type="button" onClick={() => onViewModeChange('map')} aria-pressed={viewMode === 'map'}><Map size={17} /> Mapa</button>
           </div>
-        )}
-      </div>
-
-      <div className="filter-controls">
-        <label className="compact-search"><Search size={17} /><input value={search} onChange={(event: ChangeEvent<HTMLInputElement>) => onChange({ search: event.target.value })} placeholder="Buscar en esta sección" aria-label="Buscar en esta sección" /></label>
-        {cities.length > 0 && (
-          <label className="select-control"><MapPin size={16} /><select value={city} onChange={(event: ChangeEvent<HTMLSelectElement>) => onChange({ city: event.target.value })} aria-label="Filtrar por ciudad"><option value="">Todas las ciudades</option>{cities.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
-        )}
+        ) : null}
       </div>
 
       {availableLabels.length > 0 && (

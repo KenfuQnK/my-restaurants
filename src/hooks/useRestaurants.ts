@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { createManualContent, upsertRestaurant } from '../services/restaurantCollection';
+import { upsertRestaurant } from '../services/restaurantCollection';
 import {
   loadLabels,
   loadRestaurants,
@@ -11,7 +11,6 @@ import type {
   ImportSource,
   InstagramPublication,
   MainCategoryId,
-  ManualContentInput,
   RestaurantPersonalData,
   SavedRestaurant,
   UserLabel,
@@ -47,12 +46,6 @@ export function useRetiva() {
     });
     setItems(result.restaurants);
     return result;
-  }
-
-  function addManual(input: ManualContentInput): SavedRestaurant {
-    const item = createManualContent(input);
-    setItems((current) => [item, ...current]);
-    return item;
   }
 
   function updateItem(
@@ -174,7 +167,6 @@ export function useRetiva() {
     labels,
     placeIds,
     addPlace,
-    addManual,
     updateItem,
     toggleFavorite,
     removeItem,
