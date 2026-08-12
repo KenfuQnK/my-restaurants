@@ -5617,6 +5617,190 @@ body::before {
   }
 }
 
+/* Flat controls and the item-level label editor. */
+button,
+.button,
+.icon-button,
+.text-button,
+.view-toggle button,
+.category-buttons button,
+.label-picker button {
+  background-image: none !important;
+  box-shadow: none !important;
+  text-shadow: none;
+}
+
+button:hover,
+.button:hover,
+.icon-button:hover,
+.text-button:hover {
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.restaurant-card,
+.candidate-card {
+  border: 0 !important;
+}
+
+.restaurant-card:hover,
+.candidate-card:hover {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.item-label-summary {
+  margin: 22px 0;
+}
+
+.item-label-summary-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--retiva-navy);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.item-label-summary-heading .text-button {
+  padding: 0;
+  color: var(--retiva-blue);
+  font-weight: 800;
+}
+
+.item-label-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.item-label-chips span {
+  padding: 7px 10px;
+  color: var(--retiva-navy);
+  background: var(--retiva-blue-soft);
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 760;
+}
+
+.item-label-chips p,
+.label-selection-list > p {
+  margin: 0;
+  color: #688093;
+  font-size: 0.82rem;
+}
+
+.label-selection-backdrop {
+  position: fixed;
+  z-index: 200;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(3, 25, 41, 0.58);
+}
+
+.label-selection-modal {
+  width: min(100%, 520px);
+  max-height: min(680px, calc(100dvh - 40px));
+  overflow: auto;
+  padding: 24px;
+  background: #f2f8fb;
+  border-radius: 20px;
+  box-shadow: 0 24px 64px rgba(3, 25, 41, 0.28);
+}
+
+.label-selection-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.label-selection-heading h3 {
+  margin: 3px 0 0;
+  color: var(--retiva-navy);
+  font-size: 1.45rem;
+}
+
+.label-quick-create {
+  margin: 22px 0 18px;
+}
+
+.label-quick-create > label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--retiva-navy);
+  font-size: 0.8rem;
+  font-weight: 780;
+}
+
+.label-quick-create > div {
+  display: flex;
+  gap: 8px;
+}
+
+.label-quick-create input {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 0 12px;
+  color: var(--retiva-ink);
+  background: #fff;
+  border: 1px solid #c7e2e8;
+  border-radius: 10px;
+}
+
+.label-quick-create .button {
+  flex: 0 0 auto;
+}
+
+.label-selection-list {
+  display: grid;
+  gap: 8px;
+}
+
+.label-selection-list button {
+  display: flex;
+  width: 100%;
+  min-height: 46px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 13px;
+  color: var(--retiva-navy);
+  background: #fff;
+  border: 1px solid #cbe8ee;
+  border-radius: 10px;
+  text-align: left;
+}
+
+.label-selection-list button > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.86rem;
+  font-weight: 720;
+}
+
+.label-selection-list button.selected {
+  color: var(--retiva-navy);
+  background: var(--retiva-blue-soft);
+  border-color: var(--retiva-blue);
+}
+
+@media (max-width: 520px) {
+  .label-selection-modal {
+    padding: 20px;
+  }
+
+  .label-quick-create > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 /* Retiva requested layout: sidebar, photographic cards and blue modal */
 :root {
   --retiva-navy: #062a44;

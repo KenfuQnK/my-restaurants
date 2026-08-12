@@ -13,10 +13,8 @@ import type {
   MainCategoryId,
   ResolvedInstagramPublication,
   SavedItem,
-  UserLabel,
 } from '../types/restaurant';
 import { CandidateList } from './CandidateList';
-import { CategoryButtons, LabelPicker } from './CategoryControls';
 import { InstagramEmbed } from './InstagramEmbed';
 
 interface ImportPanelProps {
@@ -24,13 +22,12 @@ interface ImportPanelProps {
   instagramStage: InstagramImportStage;
   importError?: string;
   detection: CategoryDetection;
-  labels: UserLabel[];
   onInstagramSearch: (query: string) => void;
   candidates: ExternalPlace[];
   savingPlaceId?: string;
   savedPlaceIds: Set<string>;
   savedItems: SavedItem[];
-  onSaveCandidate: (candidate: ExternalPlace, categoryIds: MainCategoryId[], labelIds: string[]) => void;
+  onSaveCandidate: (candidate: ExternalPlace, categoryIds: MainCategoryId[]) => void;
   onOpenExisting: (item: SavedItem) => void;
   onClearCandidates: () => void;
   onClose: () => void;
@@ -41,7 +38,6 @@ export function ImportPanel({
   instagramStage,
   importError,
   detection,
-  labels,
   onInstagramSearch,
   candidates,
   savingPlaceId,
@@ -55,27 +51,17 @@ export function ImportPanel({
   const [placeQuery, setPlaceQuery] = useState('');
   const [manualSearchOpen, setManualSearchOpen] = useState(false);
   const [categoryIds, setCategoryIds] = useState<MainCategoryId[]>([detection.categoryId]);
-  const [labelIds, setLabelIds] = useState<string[]>([]);
 
   useEffect(() => {
     setPlaceQuery('');
     setManualSearchOpen(false);
     setCategoryIds([detection.categoryId]);
-    setLabelIds([]);
   }, [instagram.publication.id, detection.categoryId]);
 
   function submitPlaceSearch(event: FormEvent) {
     event.preventDefault();
     const query = placeQuery.trim();
     if (query.length >= 2) onInstagramSearch(query);
-  }
-
-  function changeCategories(next: MainCategoryId[]) {
-    setCategoryIds(next);
-    setLabelIds((current) => current.filter((id) => {
-      const label = labels.find((candidate) => candidate.id === id);
-      return Boolean(label && next.includes(label.categoryId));
-    }));
   }
 
   const manualSearch = manualSearchOpen ? (
@@ -136,22 +122,15 @@ export function ImportPanel({
               </section>
             ) : null}
 
-            <div className="detected-category-card">
-              <CategoryButtons values={categoryIds} onChange={changeCategories} suggested />
-              <LabelPicker labels={labels} categoryIds={categoryIds} selectedIds={labelIds} onChange={setLabelIds} compact />
-            </div>
-
             <CandidateList
               candidates={candidates}
               savingPlaceId={savingPlaceId}
               savedPlaceIds={savedPlaceIds}
               savedItems={savedItems}
-              labels={labels}
               onSave={onSaveCandidate}
               onOpenExisting={onOpenExisting}
               mode="instagram"
               suggestedCategoryIds={categoryIds}
-              suggestedLabelIds={labelIds}
               onClear={onClearCandidates}
               showWhenEmpty
               headerAction={(

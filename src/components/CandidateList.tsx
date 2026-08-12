@@ -1,22 +1,19 @@
 import { Check, ExternalLink, LoaderCircle, MapPin, MessageCircle, Plus, Star } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { detectCategory, getItemCategories } from '../domain/categories';
 import { api } from '../services/api';
-import type { ExternalPlace, MainCategoryId, SavedItem, UserLabel } from '../types/restaurant';
+import type { ExternalPlace, MainCategoryId, SavedItem } from '../types/restaurant';
 import { formatRating, formatReviewCount, humanizeType } from '../utils/formatters';
-import { LabelPicker } from './CategoryControls';
 
 interface CandidateListProps {
   candidates: ExternalPlace[];
   savingPlaceId?: string;
   savedPlaceIds: Set<string>;
   savedItems: SavedItem[];
-  labels: UserLabel[];
-  onSave: (place: ExternalPlace, categoryIds: MainCategoryId[], labelIds: string[]) => void;
+  onSave: (place: ExternalPlace, categoryIds: MainCategoryId[]) => void;
   onOpenExisting: (item: SavedItem) => void;
   mode?: 'save' | 'instagram';
   suggestedCategoryIds?: MainCategoryId[];
-  suggestedLabelIds?: string[];
   showWhenEmpty?: boolean;
   headerAction?: ReactNode;
   controls?: ReactNode;
@@ -29,12 +26,10 @@ export function CandidateList({
   savingPlaceId,
   savedPlaceIds,
   savedItems,
-  labels,
   onSave,
   onOpenExisting,
   mode = 'save',
   suggestedCategoryIds,
-  suggestedLabelIds,
   showWhenEmpty = false,
   headerAction,
   controls,
@@ -61,10 +56,8 @@ export function CandidateList({
             saving={savingPlaceId === place.placeId}
             alreadySaved={savedPlaceIds.has(place.placeId)}
             existingItem={savedItems.find((item) => item.placeId === place.placeId)}
-            labels={labels}
             mode={mode}
             suggestedCategoryIds={suggestedCategoryIds}
-            suggestedLabelIds={suggestedLabelIds}
             onSave={onSave}
             onOpenExisting={onOpenExisting}
             onWhatsApp={onWhatsApp}
@@ -80,25 +73,20 @@ interface CandidateCardProps {
   saving: boolean;
   alreadySaved: boolean;
   existingItem?: SavedItem;
-  labels: UserLabel[];
   mode: 'save' | 'instagram';
   suggestedCategoryIds?: MainCategoryId[];
-  suggestedLabelIds?: string[];
-  onSave: (place: ExternalPlace, categoryIds: MainCategoryId[], labelIds: string[]) => void;
+  onSave: (place: ExternalPlace, categoryIds: MainCategoryId[]) => void;
   onOpenExisting: (item: SavedItem) => void;
   onWhatsApp?: (place: ExternalPlace) => void;
 }
 
-function CandidateCard({ place, saving, alreadySaved, existingItem, labels, mode, suggestedCategoryIds, suggestedLabelIds, onSave, onOpenExisting, onWhatsApp }: CandidateCardProps) {
+function CandidateCard({ place, saving, alreadySaved, existingItem, mode, suggestedCategoryIds, onSave, onOpenExisting, onWhatsApp }: CandidateCardProps) {
   const detection = detectCategory({ place });
   const categoryIds = existingItem
     ? getItemCategories(existingItem)
     : suggestedCategoryIds?.length ? suggestedCategoryIds : [detection.categoryId];
-  const [labelIds, setLabelIds] = useState<string[]>(existingItem?.personal.labelIds ?? []);
   const photo = place.photos[0];
   const isInstagramImport = mode === 'instagram';
-  const effectiveLabelIds = isInstagramImport ? suggestedLabelIds ?? [] : labelIds;
-  const hasLabels = labels.some((label) => categoryIds.includes(label.categoryId));
 
   return (
     <article className="candidate-card">
@@ -116,19 +104,13 @@ function CandidateCard({ place, saving, alreadySaved, existingItem, labels, mode
         )}
       </div>
 
-      {!isInstagramImport && hasLabels ? (
-        <div className="candidate-organization">
-          <LabelPicker labels={labels} categoryIds={categoryIds} selectedIds={labelIds} onChange={setLabelIds} compact />
-        </div>
-      ) : null}
-
       <div className="candidate-actions">
         {place.googleMapsUrl && <a className="icon-button" href={place.googleMapsUrl} target="_blank" rel="noreferrer" title="Abrir en Google Maps"><ExternalLink size={18} /></a>}
         {place.phone && <a className="icon-button whatsapp-action" href={`https://wa.me/${place.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" title="Abrir WhatsApp" aria-label={`Abrir WhatsApp de ${place.name}`} onClick={() => onWhatsApp?.(place)}><MessageCircle size={18} /></a>}
         <button
           className={`button ${alreadySaved ? 'button-success' : 'button-primary'}`}
           type="button"
-          onClick={() => existingItem ? onOpenExisting(existingItem) : onSave(place, categoryIds, effectiveLabelIds)}
+          onClick={() => existingItem ? onOpenExisting(existingItem) : onSave(place, categoryIds)}
           disabled={saving}
         >
           {saving ? <LoaderCircle className="spin" size={18} /> : alreadySaved ? <Check size={18} /> : <Plus size={18} />}

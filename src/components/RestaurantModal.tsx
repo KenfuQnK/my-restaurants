@@ -9,7 +9,6 @@ import {
   NotebookPen,
   Phone,
   Star,
-  Tag,
   Trash2,
   X,
 } from 'lucide-react';
@@ -18,8 +17,9 @@ import { getCategory, getItemCategories } from '../domain/categories';
 import { api } from '../services/api';
 import type { MainCategoryId, RestaurantPersonalData, SavedItem, UserLabel } from '../types/restaurant';
 import { formatRating, formatReviewCount } from '../utils/formatters';
-import { CategoryButtons, LabelPicker } from './CategoryControls';
+import { CategoryButtons } from './CategoryControls';
 import { InstagramEmbed } from './InstagramEmbed';
+import { ItemLabelEditorModal } from './ItemLabelEditorModal';
 
 interface RestaurantModalProps {
   item: SavedItem;
@@ -28,6 +28,8 @@ interface RestaurantModalProps {
   onToggleFavorite: () => void;
   onDelete: () => void;
   labels: UserLabel[];
+  onCreateLabel: (name: string, categoryId: MainCategoryId) => UserLabel | undefined;
+  autoFocusCategory?: boolean;
 }
 
 interface DaySchedule {
@@ -51,15 +53,17 @@ interface ScheduleScale {
 
 const WEEK_DAYS = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
 
-export function RestaurantModal({ item, onClose, onSave, onToggleFavorite, onDelete, labels }: RestaurantModalProps) {
+export function RestaurantModal({ item, onClose, onSave, onToggleFavorite, onDelete, labels, onCreateLabel, autoFocusCategory = false }: RestaurantModalProps) {
   const { external, personal, sources } = item;
   const [notes, setNotes] = useState(personal.notes);
-  const [tags, setTags] = useState(personal.tags.join(', '));
+  const tags = personal.tags.join(', ');
   const [categoryIds, setCategoryIds] = useState<MainCategoryId[]>(getItemCategories(item));
   const [labelIds, setLabelIds] = useState<string[]>(personal.labelIds ?? []);
   const onSaveRef = useRef(onSave);
   const personalRef = useRef(personal);
   const savedSignatureRef = useRef(getPersonalSignature(personal.notes, personal.tags.join(', '), personal.labelIds ?? [], getItemCategories(item)));
+  const categorySectionRef = useRef<HTMLElement>(null);
+  const [labelsEditorOpen, setLabelsEditorOpen] = useState(false);
   const instagramSource = sources.find((source) => source.kind === 'instagram' && source.url);
   const instagramPublications = item.instagramPublications ?? [];
   const primaryInstagramUrl = instagramPublications[0]?.normalizedUrl ?? instagramSource?.url;
@@ -103,6 +107,12 @@ export function RestaurantModal({ item, onClose, onSave, onToggleFavorite, onDel
       document.body.classList.remove('modal-open');
     };
   }, [onClose]);
+
+  useEffect(() => {
+    if (!autoFocusCategory) return;
+    const timeout = window.setTimeout(() => categorySectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 180);
+    return () => window.clearTimeout(timeout);
+  }, [autoFocusCategory]);
 
   function changeCategories(next: MainCategoryId[]) {
     setCategoryIds(next);
@@ -198,15 +208,19 @@ export function RestaurantModal({ item, onClose, onSave, onToggleFavorite, onDel
               </section>
             )}
 
-            <section className="detail-panel personal-panel">
+            <section className="detail-panel personal-panel" ref={categorySectionRef}>
               <h3>Tu información</h3>
               <CategoryButtons values={categoryIds} onChange={changeCategories} />
-              <LabelPicker labels={labels} categoryIds={categoryIds} selectedIds={labelIds} onChange={setLabelIds} />
-              <label className="personal-field">
-                <span>Etiquetas</span>
-                <span className="personal-input"><Tag size={21} /><input value={tags} onChange={(event: ChangeEvent<HTMLInputElement>) => setTags(event.target.value)} placeholder="pendiente, terraza, cena…" /></span>
-                <small>Separadas por comas.</small>
-              </label>
+              <section className="item-label-summary" aria-labelledby="item-label-summary-title">
+                <div className="item-label-summary-heading">
+                  <span id="item-label-summary-title">Labels</span>
+                  <button className="text-button" type="button" onClick={() => setLabelsEditorOpen(true)}>Editar</button>
+                </div>
+                <div className="item-label-chips">
+                  {labels.filter((label) => labelIds.includes(label.id)).map((label) => <span key={label.id}>{label.name}</span>)}
+                  {labels.filter((label) => labelIds.includes(label.id)).length === 0 ? <p>Sin labels todavía.</p> : null}
+                </div>
+              </section>
               <label className="personal-field notes-field">
                 <span>Notas</span>
                 <span className="personal-input textarea-input"><NotebookPen size={21} /><textarea value={notes} onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setNotes(event.target.value)} rows={4} placeholder="Qué pedir, quién te lo recomendó…" /></span>
@@ -224,6 +238,7 @@ export function RestaurantModal({ item, onClose, onSave, onToggleFavorite, onDel
           <div className="modal-meta"><button className="danger-button" type="button" onClick={confirmDelete}><Trash2 size={16} /> Eliminar</button></div>
         </div>
       </section>
+      {labelsEditorOpen && <ItemLabelEditorModal labels={labels} selectedIds={labelIds} categoryIds={categoryIds} onChange={setLabelIds} onCreateLabel={onCreateLabel} onClose={() => setLabelsEditorOpen(false)} />}
     </div>
   );
 }

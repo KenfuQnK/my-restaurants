@@ -287,7 +287,7 @@ function App() {
     void runSearch(query, source, undefined, true);
   }
 
-  async function handleSaveCandidate(candidate: ExternalPlace, categoryIds: MainCategoryId[], labelIds: string[]) {
+  async function handleSaveCandidate(candidate: ExternalPlace, categoryIds: MainCategoryId[]) {
     const existing = items.find((item) => item.placeId === candidate.placeId);
     if (existing) {
       openExistingItem(existing);
@@ -297,7 +297,7 @@ function App() {
     try {
       const details = await api.getPlaceDetails(candidate.placeId);
       const source = pendingSource ?? { kind: 'manual_search' as const, importedAt: new Date().toISOString() };
-      const result = addPlace(details, source, undefined, categoryIds, labelIds);
+      const result = addPlace(details, source, undefined, categoryIds);
       closeSearchModal();
       setSelectedItem(result.restaurant);
       setToast({ kind: 'success', message: 'Guardado en Retiva.' });
@@ -308,7 +308,7 @@ function App() {
     }
   }
 
-  async function handleSaveInstagramCandidate(candidate: ExternalPlace, categoryIds: MainCategoryId[], labelIds: string[]) {
+  async function handleSaveInstagramCandidate(candidate: ExternalPlace, categoryIds: MainCategoryId[]) {
     if (!instagramImport) return;
     const existing = items.find((item) => item.placeId === candidate.placeId);
     if (existing) {
@@ -319,7 +319,7 @@ function App() {
     try {
       const details = await api.getPlaceDetails(candidate.placeId);
       const source = pendingSource ?? { kind: 'instagram' as const, originalInput: instagramImport.publication.originalUrl, url: instagramImport.publication.originalUrl, importedAt: new Date().toISOString() };
-      const result = addPlace(details, source, instagramImport.publication, categoryIds, labelIds);
+      const result = addPlace(details, source, instagramImport.publication, categoryIds);
       closeSearchModal();
       setSelectedItem(result.restaurant);
       setToast({ kind: 'success', message: 'Publicación guardada.' });
@@ -454,14 +454,14 @@ function App() {
             </div>
             <div className="command-center search-modal-content">
               <SearchPanel loading={loading} resetToken={searchResetToken} initialValue={modalSearchValue} onSearch={handlePlaceSearch} onImport={handleImport} />
-              {instagramImport && <ImportPanel instagram={instagramImport} instagramStage={instagramStage} importError={importError} detection={instagramDetection} labels={labels} onInstagramSearch={handleInstagramSearch} candidates={candidates} savingPlaceId={savingPlaceId} savedPlaceIds={placeIds} savedItems={items} onSaveCandidate={handleSaveInstagramCandidate} onOpenExisting={openExistingItem} onClearCandidates={clearCandidates} onClose={resetInstagramSession} />}
-              {!instagramImport && <CandidateList candidates={candidates} savingPlaceId={savingPlaceId} savedPlaceIds={placeIds} savedItems={items} labels={labels} onSave={handleSaveCandidate} onOpenExisting={openExistingItem} onClear={clearCandidates} onWhatsApp={() => { setCandidates([]); setSearchResetToken((current) => current + 1); }} />}
+              {instagramImport && <ImportPanel instagram={instagramImport} instagramStage={instagramStage} importError={importError} detection={instagramDetection} onInstagramSearch={handleInstagramSearch} candidates={candidates} savingPlaceId={savingPlaceId} savedPlaceIds={placeIds} savedItems={items} onSaveCandidate={handleSaveInstagramCandidate} onOpenExisting={openExistingItem} onClearCandidates={clearCandidates} onClose={resetInstagramSession} />}
+              {!instagramImport && <CandidateList candidates={candidates} savingPlaceId={savingPlaceId} savedPlaceIds={placeIds} savedItems={items} onSave={handleSaveCandidate} onOpenExisting={openExistingItem} onClear={clearCandidates} onWhatsApp={() => { setCandidates([]); setSearchResetToken((current) => current + 1); }} />}
             </div>
           </section>
         </div>
       )}
 
-      {selectedItem && <RestaurantModal key={selectedItem.id} item={selectedItem} labels={labels} onClose={() => setSelectedItem(undefined)} onToggleFavorite={() => { toggleFavorite(selectedItem.id); setSelectedItem((current) => current ? { ...current, personal: { ...current.personal, favorite: !current.personal.favorite } } : current); }} onSave={(personal, categoryIds) => { updateItem(selectedItem.id, personal, categoryIds); setSelectedItem((current) => current ? { ...current, personal, categoryIds, categoryId: undefined } : current); }} onDelete={() => { removeItem(selectedItem.id); setSelectedItem(undefined); setToast({ kind: 'success', message: 'Contenido eliminado.' }); }} />}
+      {selectedItem && <RestaurantModal key={selectedItem.id} item={selectedItem} labels={labels} autoFocusCategory={getItemCategories(selectedItem).includes('other')} onCreateLabel={createLabel} onClose={() => setSelectedItem(undefined)} onToggleFavorite={() => { toggleFavorite(selectedItem.id); setSelectedItem((current) => current ? { ...current, personal: { ...current.personal, favorite: !current.personal.favorite } } : current); }} onSave={(personal, categoryIds) => { updateItem(selectedItem.id, personal, categoryIds); setSelectedItem((current) => current ? { ...current, personal, categoryIds, categoryId: undefined } : current); }} onDelete={() => { removeItem(selectedItem.id); setSelectedItem(undefined); setToast({ kind: 'success', message: 'Contenido eliminado.' }); }} />}
 
       {settingsOpen && <LabelManagerModal labels={labels} onClose={() => setSettingsOpen(false)} onCreate={(name, categoryId) => Boolean(createLabel(name, categoryId))} onUpdate={updateLabel} onDelete={deleteLabel} />}
 
